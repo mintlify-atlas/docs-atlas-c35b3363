@@ -1,0 +1,521 @@
+---
+title: Vercel AI SDK
+description: Integrate LLM Gateway with the Vercel AI SDK for building AI-powered applications
+---
+
+# Vercel AI SDK Integration
+
+The Vercel AI SDK is a TypeScript toolkit for building AI-powered applications with React, Next.js, and other frameworks. LLM Gateway integrates seamlessly with the Vercel AI SDK through the OpenAI provider.
+
+## Quick Start
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: 'your-llmgateway-api-key'
+});
+
+const { text } = await generateText({
+    model,
+    prompt: 'What is the Vercel AI SDK?'
+});
+
+console.log(text);
+```
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install ai @ai-sdk/openai
+```
+
+```bash yarn
+yarn add ai @ai-sdk/openai
+```
+
+```bash pnpm
+pnpm add ai @ai-sdk/openai
+```
+</CodeGroup>
+
+## Before and After Comparison
+
+<CodeGroup>
+```typescript Before (OpenAI)
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const model = openai('gpt-4o', {
+    apiKey: 'sk-...'  // OpenAI API key
+});
+
+const { text } = await generateText({
+    model,
+    prompt: 'Hello!'
+});
+```
+
+```typescript After (LLM Gateway)
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const model = openai('gpt-5', {  // Use LLM Gateway model names
+    baseURL: 'https://api.llmgateway.io/v1',  // Add this line
+    apiKey: 'your-llmgateway-api-key'  // Use LLM Gateway API key
+});
+
+const { text } = await generateText({
+    model,
+    prompt: 'Hello!'
+});
+```
+</CodeGroup>
+
+## Text Generation
+
+### Basic Generation
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: 'your-llmgateway-api-key'
+});
+
+const { text, usage } = await generateText({
+    model,
+    prompt: 'Explain quantum computing in simple terms'
+});
+
+console.log(text);
+console.log('Tokens:', usage.totalTokens);
+```
+
+### Structured Output
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: 'your-llmgateway-api-key'
+});
+
+const { object } = await generateObject({
+    model,
+    schema: z.object({
+        name: z.string(),
+        age: z.number(),
+        email: z.string().email()
+    }),
+    prompt: 'Generate a user profile for John Doe, age 30'
+});
+
+console.log(object);
+// { name: 'John Doe', age: 30, email: 'john@example.com' }
+```
+
+## Streaming
+
+### Text Streaming
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: 'your-llmgateway-api-key'
+});
+
+const { textStream } = await streamText({
+    model,
+    prompt: 'Write a short story about a robot'
+});
+
+for await (const chunk of textStream) {
+    process.stdout.write(chunk);
+}
+```
+
+### Streaming with React
+
+```tsx
+import { openai } from '@ai-sdk/openai';
+import { useChat } from 'ai/react';
+
+export default function Chat() {
+    const { messages, input, handleInputChange, handleSubmit } = useChat({
+        api: '/api/chat',  // Your API endpoint
+    });
+
+    return (
+        <div>
+            {messages.map(m => (
+                <div key={m.id}>
+                    <strong>{m.role}:</strong> {m.content}
+                </div>
+            ))}
+            <form onSubmit={handleSubmit}>
+                <input value={input} onChange={handleInputChange} />
+                <button type="submit">Send</button>
+            </form>
+        </div>
+    );
+}
+```
+
+### API Route for Chat
+
+```typescript
+// app/api/chat/route.ts
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+
+export const runtime = 'edge';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: process.env.LLMGATEWAY_API_KEY
+});
+
+export async function POST(req: Request) {
+    const { messages } = await req.json();
+
+    const result = await streamText({
+        model,
+        messages
+    });
+
+    return result.toAIStreamResponse();
+}
+```
+
+## Tool Calling (Function Calling)
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText, tool } from 'ai';
+import { z } from 'zod';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: 'your-llmgateway-api-key'
+});
+
+const { text, toolCalls } = await generateText({
+    model,
+    prompt: 'What is the weather in San Francisco and Boston?',
+    tools: {
+        getWeather: tool({
+            description: 'Get the weather in a location',
+            parameters: z.object({
+                location: z.string().describe('The location to get the weather for')
+            }),
+            execute: async ({ location }) => {
+                // Simulate weather API call
+                return { location, temperature: 72, condition: 'Sunny' };
+            }
+        })
+    },
+    maxToolRoundtrips: 5  // Allow multiple tool calls
+});
+
+console.log(text);
+```
+
+## Streaming with Tool Calls
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { streamText, tool } from 'ai';
+import { z } from 'zod';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: 'your-llmgateway-api-key'
+});
+
+const { textStream, toolResults } = await streamText({
+    model,
+    prompt: 'Calculate 25 * 17 and then add 100',
+    tools: {
+        calculator: tool({
+            description: 'A calculator for basic math operations',
+            parameters: z.object({
+                operation: z.enum(['add', 'subtract', 'multiply', 'divide']),
+                a: z.number(),
+                b: z.number()
+            }),
+            execute: async ({ operation, a, b }) => {
+                switch (operation) {
+                    case 'add': return a + b;
+                    case 'subtract': return a - b;
+                    case 'multiply': return a * b;
+                    case 'divide': return a / b;
+                }
+            }
+        })
+    }
+});
+
+for await (const chunk of textStream) {
+    process.stdout.write(chunk);
+}
+```
+
+## Chat UI Hook
+
+The `useChat` hook provides a complete chat interface with minimal code:
+
+```tsx
+'use client';
+
+import { useChat } from 'ai/react';
+
+export default function ChatPage() {
+    const { 
+        messages, 
+        input, 
+        handleInputChange, 
+        handleSubmit,
+        isLoading,
+        error
+    } = useChat({
+        api: '/api/chat',
+        initialMessages: [
+            { id: '1', role: 'system', content: 'You are a helpful assistant.' }
+        ]
+    });
+
+    return (
+        <div className="flex flex-col h-screen">
+            <div className="flex-1 overflow-y-auto p-4">
+                {messages.map(message => (
+                    <div 
+                        key={message.id} 
+                        className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}
+                    >
+                        <div className="inline-block p-3 rounded-lg bg-gray-100">
+                            {message.content}
+                        </div>
+                    </div>
+                ))}
+                {isLoading && <div>Loading...</div>}
+                {error && <div className="text-red-500">Error: {error.message}</div>}
+            </div>
+            <form onSubmit={handleSubmit} className="border-t p-4">
+                <input
+                    value={input}
+                    onChange={handleInputChange}
+                    placeholder="Type your message..."
+                    className="w-full p-2 border rounded"
+                    disabled={isLoading}
+                />
+            </form>
+        </div>
+    );
+}
+```
+
+## Completion Hook
+
+For autocomplete and text completion use cases:
+
+```tsx
+'use client';
+
+import { useCompletion } from 'ai/react';
+
+export default function CompletionPage() {
+    const { completion, input, handleInputChange, handleSubmit } = useCompletion({
+        api: '/api/completion'
+    });
+
+    return (
+        <div>
+            <form onSubmit={handleSubmit}>
+                <input 
+                    value={input} 
+                    onChange={handleInputChange} 
+                    placeholder="Start typing..."
+                />
+                <button type="submit">Complete</button>
+            </form>
+            <div>
+                {input}
+                <span className="text-gray-400">{completion}</span>
+            </div>
+        </div>
+    );
+}
+```
+
+```typescript
+// app/api/completion/route.ts
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+
+export const runtime = 'edge';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: process.env.LLMGATEWAY_API_KEY
+});
+
+export async function POST(req: Request) {
+    const { prompt } = await req.json();
+
+    const result = await streamText({
+        model,
+        prompt: `Complete the following text: ${prompt}`
+    });
+
+    return result.toAIStreamResponse();
+}
+```
+
+## Multi-Provider Setup
+
+Leverage LLM Gateway's automatic routing:
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+// Create model factory
+function createModel(modelName: string) {
+    return openai(modelName, {
+        baseURL: 'https://api.llmgateway.io/v1',
+        apiKey: process.env.LLMGATEWAY_API_KEY
+    });
+}
+
+// Use different models for different tasks
+const fastModel = createModel('gpt-5-nano');  // Fast, cheap model
+const smartModel = createModel('gpt-5');      // Balanced model
+const autoModel = createModel('auto');         // Automatic routing
+
+// Simple task
+const { text: summary } = await generateText({
+    model: fastModel,
+    prompt: 'Summarize: ...'
+});
+
+// Complex task
+const { text: analysis } = await generateText({
+    model: smartModel,
+    prompt: 'Analyze: ...'
+});
+
+// Let LLM Gateway decide
+const { text: response } = await generateText({
+    model: autoModel,
+    prompt: 'General query...'
+});
+```
+
+## Environment Variables
+
+```bash .env.local
+LLMGATEWAY_API_KEY=your-llmgateway-api-key
+```
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: process.env.LLMGATEWAY_API_KEY  // Reads from .env.local
+});
+```
+
+## Model Selection
+
+```typescript
+// Use LLM Gateway's unified model names
+const model = openai('gpt-5');  // Auto-routes to best provider
+
+// Specify a provider
+const openaiModel = openai('openai/gpt-4o');
+const anthropicModel = openai('anthropic/claude-3-5-sonnet-20241022');
+
+// Use automatic routing
+const autoModel = openai('auto');  // Selects cheapest model
+```
+
+## Advanced Configuration
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: 'your-llmgateway-api-key',
+    // Optional: custom headers
+    headers: {
+        'x-source': 'my-app',
+        'x-request-id': 'unique-id'
+    }
+});
+
+const { text } = await generateText({
+    model,
+    prompt: 'Hello!',
+    temperature: 0.7,
+    maxTokens: 1000,
+    topP: 0.9,
+    frequencyPenalty: 0.5,
+    presencePenalty: 0.5
+});
+```
+
+## Response Format
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const model = openai('gpt-5', {
+    baseURL: 'https://api.llmgateway.io/v1',
+    apiKey: 'your-llmgateway-api-key'
+});
+
+// Force JSON output
+const { text } = await generateText({
+    model,
+    prompt: 'Generate a user profile',
+    experimental_providerMetadata: {
+        openai: {
+            responseFormat: { type: 'json_object' }
+        }
+    }
+});
+
+const profile = JSON.parse(text);
+```
+
+## Caveats and Limitations
+
+- **Model Names**: Use LLM Gateway's model naming (e.g., `gpt-5` instead of `gpt-4o`)
+- **Provider Parameter**: Always use the `openai` function even for non-OpenAI models
+- **Base URL**: Must set `baseURL` to `https://api.llmgateway.io/v1`
+- **Edge Runtime**: Fully compatible with Vercel Edge Runtime
+- **Response Metadata**: LLM Gateway adds additional metadata (provider, routing, costs) not present in standard OpenAI responses
+
+## Next Steps
+
+- [View available models](/api-reference/gateway/models)
+- [Learn about automatic routing](/features/multi-provider)
+- [Explore Vercel AI SDK documentation](https://sdk.vercel.ai/docs)
+- [View the Playground](/guides/playground)

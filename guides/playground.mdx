@@ -1,0 +1,567 @@
+---
+title: "Playground"
+description: "Test and experiment with LLM models interactively"
+icon: "play"
+---
+
+## What is the Playground?
+
+The Playground is an interactive environment for testing LLM models without writing code. It provides:
+
+- **Chat Interface**: Multi-turn conversations with any supported model
+- **Image Generation**: Create images with AI models like Qwen, Gemini Nano Banana
+- **Group Chat**: Compare responses from multiple models simultaneously
+- **Model Comparison**: Test the same prompt across different models
+- **Web Search**: Enable models to search the internet for real-time information
+- **Advanced Controls**: Fine-tune temperature, reasoning effort, and more
+
+<Note>
+  Usage in the Playground is billed the same as API requests, using your organization's credits or provider keys.
+</Note>
+
+## Getting Started
+
+Access the Playground at [playground.llmgateway.io](https://playground.llmgateway.io).
+
+<Steps>
+  <Step title="Sign In">
+    Log in with your LLM Gateway account.
+  </Step>
+  
+  <Step title="Select Organization">
+    Choose which organization's credits to use.
+  </Step>
+  
+  <Step title="Select Project">
+    Pick a project to track usage.
+  </Step>
+  
+  <Step title="Choose a Model">
+    Select from 150+ available models.
+  </Step>
+  
+  <Step title="Start Chatting">
+    Type your message and press Enter or click Send.
+  </Step>
+</Steps>
+
+## Chat Interface
+
+The standard chat interface supports text conversations with any LLM.
+
+### Basic Usage
+
+1. **Type your message** in the input box at the bottom
+2. **Press Enter** or click the send button
+3. **View the response** in the conversation thread
+4. **Continue the conversation** by sending more messages
+
+### Supported Features
+
+<Tabs>
+  <Tab title="Text">
+    All models support basic text conversations:
+    
+    ```
+    User: Explain quantum computing in simple terms
+    
+    Assistant: Quantum computing uses the principles of...
+    ```
+  </Tab>
+  
+  <Tab title="Images">
+    Vision-enabled models can analyze images:
+    
+    1. Click the attachment icon
+    2. Select an image file
+    3. Add your question
+    4. Model analyzes the image
+    
+    **Supported models:**
+    - GPT-4 Vision, GPT-4o
+    - Claude 3 (all variants)
+    - Gemini Pro Vision, Gemini 2.0
+    - Qwen-VL
+  </Tab>
+  
+  <Tab title="Tools">
+    Models with tool support can execute functions:
+    
+    - Web searches
+    - Code execution
+    - API calls
+    - File operations
+    
+    Tool calls appear as expandable sections in the chat.
+  </Tab>
+  
+  <Tab title="Reasoning">
+    Reasoning models show their thought process:
+    
+    - OpenAI o1, o3
+    - DeepSeek R1
+    - Claude 3.5 Sonnet (extended thinking)
+    
+    Click **Show Reasoning** to view the model's internal thoughts.
+  </Tab>
+</Tabs>
+
+### Model Selector
+
+Click the model name to browse and switch models:
+
+**Filter by:**
+- Provider (OpenAI, Anthropic, Google, etc.)
+- Capabilities (Vision, Tools, Reasoning)
+- Pricing (Free vs. Paid)
+- Context window size
+
+**Search:**
+Type to search by model name (e.g., "gpt-4", "claude", "gemini")
+
+### Advanced Settings
+
+Click the settings icon to configure:
+
+<AccordionGroup>
+  <Accordion title="Temperature" icon="temperature-half">
+    Controls randomness in responses (0.0 - 2.0):
+    
+    - **0.0-0.3**: Deterministic, focused (code, math)
+    - **0.4-0.7**: Balanced (default for most tasks)
+    - **0.8-1.2**: Creative (stories, brainstorming)
+    - **1.3-2.0**: Highly random (experimental)
+  </Accordion>
+  
+  <Accordion title="Max Tokens" icon="text-size">
+    Maximum length of the response:
+    
+    - Controls output verbosity
+    - Higher values = longer responses
+    - Limited by model's max output
+    
+    <Tip>Default is model-specific (usually 4000-8000 tokens)</Tip>
+  </Accordion>
+  
+  <Accordion title="Reasoning Effort" icon="brain">
+    For reasoning models (o1, o3, R1):
+    
+    - **Minimal**: Quick responses
+    - **Low**: Standard reasoning
+    - **Medium**: More thorough (default)
+    - **High**: Maximum reasoning time
+    
+    Higher effort = longer processing time but better accuracy.
+  </Accordion>
+  
+  <Accordion title="Web Search" icon="globe">
+    Enable models to search the internet:
+    
+    - Toggle on/off per conversation
+    - Supported by select models
+    - Incurs additional cost per search
+    - Provides real-time information
+    
+    <Note>Not all models support web search</Note>
+  </Accordion>
+</AccordionGroup>
+
+### Chat Management
+
+**New Chat**
+Click the **+** button to start a fresh conversation.
+
+**Chat History**
+Access previous chats from the sidebar:
+- Chats are named automatically based on content
+- Click to resume a conversation
+- Delete unwanted chats
+
+**Export Chat**
+Save your conversation:
+1. Click the export button (↓)
+2. Choose format: JSON, Markdown, or Text
+3. Download or copy to clipboard
+
+## Image Generation
+
+Generate images with AI using supported models.
+
+### Accessing Image Generation
+
+1. Navigate to **Playground** → **Image**
+2. Or click the image icon in the main playground
+
+### Supported Models
+
+<CardGroup cols={2}>
+  <Card title="Qwen Image Plus" icon="image">
+    Fast, high-quality image generation
+    
+    **Sizes**: 1024x1024, 1024x768, 768x1024
+  </Card>
+  
+  <Card title="Qwen Image Max" icon="sparkles">
+    Premium quality with more details
+    
+    **Sizes**: 1024x1024, 1024x768, 768x1024
+  </Card>
+  
+  <Card title="Gemini Nano Banana" icon="wand-magic-sparkles">
+    Experimental, creative generations
+    
+    **Aspect Ratios**: 1:1, 16:9, 4:3, 5:4
+  </Card>
+</CardGroup>
+
+### Generating Images
+
+<Steps>
+  <Step title="Select Model">
+    Choose an image generation model from the dropdown.
+  </Step>
+  
+  <Step title="Enter Prompt">
+    Describe the image you want to create:
+    
+    ```
+    A serene mountain landscape at sunset with flying cars,
+    cyberpunk aesthetic, highly detailed
+    ```
+    
+    <Tip>Be specific about style, mood, and details for best results</Tip>
+  </Step>
+  
+  <Step title="Configure Settings">
+    **Size/Aspect Ratio**: Choose dimensions
+    
+    **Number of Images**: Generate 1-4 variants
+  </Step>
+  
+  <Step title="Generate">
+    Click **Generate** and wait for the model to create your image.
+  </Step>
+  
+  <Step title="Download or Refine">
+    - Click the download button to save
+    - Adjust prompt and regenerate if needed
+    - Try different models for variations
+  </Step>
+</Steps>
+
+### Image Generation Tips
+
+<AccordionGroup>
+  <Accordion title="Writing Better Prompts" icon="pen">
+    **Be specific:**
+    - Include subject, style, mood, lighting
+    - Reference art styles (realistic, anime, oil painting)
+    - Add quality tags (4K, highly detailed, masterpiece)
+    
+    **Good:**
+    > "Portrait of a cyberpunk detective in neon-lit Tokyo, film noir style, moody lighting, highly detailed"
+    
+    **Avoid:**
+    > "Make me a person"
+  </Accordion>
+  
+  <Accordion title="Aspect Ratios" icon="crop">
+    Choose based on use case:
+    
+    - **1:1**: Social media, profile pictures
+    - **16:9**: Wallpapers, presentations
+    - **9:16**: Mobile wallpapers, stories
+    - **4:3**: Traditional displays
+  </Accordion>
+  
+  <Accordion title="Iterating" icon="rotate">
+    Refine your results:
+    
+    1. Start with a basic prompt
+    2. Add details incrementally
+    3. Try different models
+    4. Adjust aspect ratio if needed
+    5. Generate multiple variants
+  </Accordion>
+</AccordionGroup>
+
+## Group Chat (Multi-Model Comparison)
+
+Compare responses from multiple models simultaneously.
+
+### How It Works
+
+1. Navigate to **Playground** → **Group Chat**
+2. Select 2-4 models to compare
+3. Enter your prompt
+4. All models respond in parallel
+5. Compare responses side-by-side
+
+### Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Quality Comparison" icon="scale-balanced">
+    Test which model gives the best answer for your use case.
+  </Card>
+  
+  <Card title="Consistency Check" icon="check-double">
+    Verify factual information across multiple models.
+  </Card>
+  
+  <Card title="Style Evaluation" icon="palette">
+    Compare tone and writing style.
+  </Card>
+  
+  <Card title="Performance Testing" icon="gauge">
+    Measure response speed and quality.
+  </Card>
+</CardGroup>
+
+### Best Practices
+
+- Compare models from different providers
+- Use the same temperature for fair comparison
+- Test with realistic production prompts
+- Note which model performs best for your specific task
+- Consider cost vs. quality tradeoffs
+
+## Web Search Integration
+
+Enable models to access real-time information from the internet.
+
+### Enabling Web Search
+
+1. Toggle **Web Search** in the settings panel
+2. Available for supported models only
+3. Send your query
+4. Model searches the web and incorporates results
+
+### When to Use Web Search
+
+<Tabs>
+  <Tab title="Good Use Cases">
+    - Current events and news
+    - Latest product information
+    - Real-time data (stock prices, weather)
+    - Recent research or publications
+    - Up-to-date technical documentation
+  </Tab>
+  
+  <Tab title="Not Needed">
+    - General knowledge questions
+    - Historical facts
+    - Code generation
+    - Creative writing
+    - Math and logic problems
+  </Tab>
+</Tabs>
+
+<Warning>
+  Web search incurs additional costs per query. Enable only when you need real-time information.
+</Warning>
+
+### Sources
+
+When web search is enabled, sources are cited in responses:
+
+1. Click **Sources** to view links
+2. Each source includes URL and snippet
+3. Verify information from multiple sources
+
+## MCP (Model Context Protocol) Integration
+
+Connect external tools and data sources to the Playground.
+
+### What is MCP?
+
+MCP allows models to:
+- Access your local files
+- Query databases
+- Call external APIs
+- Execute custom tools
+
+### Connecting MCP Servers
+
+<Steps>
+  <Step title="Open MCP Settings">
+    Click the MCP icon in the Playground toolbar.
+  </Step>
+  
+  <Step title="Add Server">
+    Enter your MCP server URL or select a pre-configured server.
+  </Step>
+  
+  <Step title="Authenticate">
+    Provide any required credentials.
+  </Step>
+  
+  <Step title="Enable Tools">
+    Toggle which tools the model can access.
+  </Step>
+</Steps>
+
+See the [MCP Integration Guide](/guides/mcp-integration) for detailed setup.
+
+## API Key Management
+
+While using the Playground, you're making requests through your organization's projects.
+
+**To view API usage:**
+1. Click your organization name
+2. Select **View API Keys**
+3. See usage for each project
+
+**To generate API keys:**
+- Playground usage doesn't require API keys
+- Generate keys when ready to integrate into your application
+- See [Projects Guide](/guides/projects) for API key creation
+
+## Keyboard Shortcuts
+
+Speed up your workflow with shortcuts:
+
+| Shortcut | Action |
+|----------|--------|
+| `Enter` | Send message |
+| `Shift + Enter` | New line |
+| `Cmd/Ctrl + N` | New chat |
+| `Cmd/Ctrl + K` | Focus search |
+| `Esc` | Close modal |
+| `Cmd/Ctrl + /` | Show shortcuts |
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Model Not Responding" icon="circle-exclamation">
+    **Possible causes:**
+    - Insufficient credits
+    - Provider API issues
+    - Network timeout
+    
+    **Solutions:**
+    - Check credit balance
+    - Try a different model
+    - Refresh the page
+    - Check status page
+  </Accordion>
+  
+  <Accordion title="Image Upload Failing" icon="image-slash">
+    **Possible causes:**
+    - File too large (>20MB)
+    - Unsupported format
+    - Model doesn't support vision
+    
+    **Solutions:**
+    - Compress image
+    - Convert to PNG/JPEG
+    - Switch to vision-capable model
+  </Accordion>
+  
+  <Accordion title="Slow Responses" icon="clock">
+    **Possible causes:**
+    - High reasoning effort
+    - Large context/images
+    - Provider latency
+    
+    **Solutions:**
+    - Reduce reasoning effort
+    - Use smaller images
+    - Try a different provider
+  </Accordion>
+  
+  <Accordion title="Web Search Not Working" icon="globe">
+    **Possible causes:**
+    - Model doesn't support web search
+    - Search quota exceeded
+    
+    **Solutions:**
+    - Check model capabilities
+    - Contact support for quota increase
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Prompt Engineering" icon="lightbulb">
+    - Start simple, add complexity gradually
+    - Be specific about desired format
+    - Provide examples when possible
+    - Use system messages for consistent behavior
+    - Test multiple phrasings
+  </Accordion>
+  
+  <Accordion title="Cost Optimization" icon="dollar-sign">
+    - Start with cheaper models (GPT-4o-mini, Claude Haiku)
+    - Only upgrade if quality is insufficient
+    - Disable web search when not needed
+    - Use lower reasoning effort for simple tasks
+    - Enable caching for repeated queries
+  </Accordion>
+  
+  <Accordion title="Model Selection" icon="robot">
+    **For coding:**
+    - Claude 3.5 Sonnet
+    - GPT-4o
+    - DeepSeek Coder
+    
+    **For creative writing:**
+    - Claude 3 Opus
+    - GPT-4o
+    - Gemini 1.5 Pro
+    
+    **For reasoning:**
+    - OpenAI o1/o3
+    - DeepSeek R1
+    - Claude 3.5 Sonnet (extended)
+    
+    **For vision:**
+    - GPT-4 Vision
+    - Claude 3 Opus
+    - Gemini Pro Vision
+  </Accordion>
+</AccordionGroup>
+
+## From Playground to Production
+
+Once you've perfected your prompts in the Playground:
+
+<Steps>
+  <Step title="Note Model and Settings">
+    Record which model and parameters worked best.
+  </Step>
+  
+  <Step title="Generate API Key">
+    Create an API key in your project settings.
+  </Step>
+  
+  <Step title="Implement in Code">
+    Use the same model and parameters in your application.
+    
+    See the [Quickstart Guide](/quickstart) for code examples.
+  </Step>
+  
+  <Step title="Test and Monitor">
+    Test in your development environment and monitor usage in production.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Integrate LLM Gateway into your application.
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Explore the complete API documentation.
+  </Card>
+  
+  <Card title="MCP Integration" icon="plug" href="/guides/mcp-integration">
+    Connect external tools to your models.
+  </Card>
+  
+  <Card title="Projects" icon="folder" href="/guides/projects">
+    Manage projects and API keys.
+  </Card>
+</CardGroup>

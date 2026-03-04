@@ -1,0 +1,506 @@
+---
+title: POST /v1/chat/completions
+description: Create a chat completion using OpenAI-compatible format with intelligent provider routing
+---
+
+Creates a model response for the given chat conversation. The gateway automatically routes requests to the optimal provider based on cost, latency, and availability.
+
+## Endpoint
+
+```
+POST https://api.llmgateway.io/v1/chat/completions
+```
+
+## Authentication
+
+Requires authentication using Bearer token or x-api-key header. See [Authentication](/api-reference/gateway/authentication).
+
+## Request Body
+
+<ParamField path="model" type="string" required>
+  The model to use for completion. Can be:
+  - Specific model ID (e.g., `gpt-4o`, `claude-3-5-sonnet-20241022`)
+  - Provider-prefixed model (e.g., `openai/gpt-4o`, `anthropic/claude-3-5-sonnet-20241022`)
+  - `auto` for automatic model selection based on cost and capabilities
+  
+  Example: `"gpt-5"`
+</ParamField>
+
+<ParamField path="messages" type="array" required>
+  Array of message objects in the conversation.
+  
+  Each message has:
+  - `role` (string): `"user"`, `"assistant"`, `"system"`, or `"tool"`
+  - `content` (string | array): Message content or array of content parts for multimodal messages
+  - `name` (string, optional): Name of the message sender
+  - `tool_call_id` (string, optional): ID of the tool call this message is responding to
+  - `tool_calls` (array, optional): Tool calls made by the assistant
+  
+  Example:
+  ```json
+  [
+    {"role": "user", "content": "Hello!"}
+  ]
+  ```
+</ParamField>
+
+<ParamField path="temperature" type="number" default="1.0">
+  Sampling temperature between 0 and 2. Higher values make output more random.
+  
+  Example: `0.7`
+</ParamField>
+
+<ParamField path="max_tokens" type="number">
+  Maximum number of tokens to generate in the completion.
+  
+  Example: `1000`
+</ParamField>
+
+<ParamField path="top_p" type="number" default="1.0">
+  Nucleus sampling parameter. Alternative to temperature.
+  
+  Example: `0.9`
+</ParamField>
+
+<ParamField path="frequency_penalty" type="number" default="0.0">
+  Penalty for repeated tokens based on frequency. Range: -2.0 to 2.0.
+  
+  Example: `0.0`
+</ParamField>
+
+<ParamField path="presence_penalty" type="number" default="0.0">
+  Penalty for repeated tokens based on presence. Range: -2.0 to 2.0.
+  
+  Example: `0.0`
+</ParamField>
+
+<ParamField path="response_format" type="object">
+  Format for the model response. Options:
+  - `{"type": "text"}` - Plain text (default)
+  - `{"type": "json_object"}` - Valid JSON object
+  - `{"type": "json_schema", "json_schema": {...}}` - JSON matching schema
+  
+  Example:
+  ```json
+  {"type": "json_object"}
+  ```
+</ParamField>
+
+<ParamField path="stream" type="boolean" default={false}>
+  Whether to stream the response as Server-Sent Events.
+  
+  Example: `false`
+</ParamField>
+
+<ParamField path="tools" type="array">
+  Array of tools the model can use. Each tool has:
+  - `type`: `"function"` or `"web_search"`
+  - `function`: For function tools, includes `name`, `description`, and `parameters`
+  
+  Example:
+  ```json
+  [{
+    "type": "function",
+    "function": {
+      "name": "get_weather",
+      "description": "Get current weather",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "location": {"type": "string"}
+        }
+      }
+    }
+  }]
+  ```
+</ParamField>
+
+<ParamField path="tool_choice" type="string | object">
+  Controls which tools the model uses:
+  - `"auto"` - Model decides (default)
+  - `"none"` - Never use tools
+  - `"required"` - Must use at least one tool
+  - `{"type": "function", "function": {"name": "..."}}` - Force specific function
+</ParamField>
+
+<ParamField path="reasoning_effort" type="string">
+  Controls reasoning effort for reasoning-capable models.
+  
+  Options: `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`
+  
+  Example: `"medium"`
+</ParamField>
+
+<ParamField path="reasoning" type="object">
+  Unified reasoning configuration. Alternative to `reasoning_effort`.
+  
+  Properties:
+  - `effort`: Same as `reasoning_effort`
+  - `max_tokens`: Exact number of tokens for reasoning (overrides effort)
+  
+  Example:
+  ```json
+  {"effort": "medium", "max_tokens": 4000}
+  ```
+</ParamField>
+
+<ParamField path="effort" type="string">
+  Computational effort for supported models (currently claude-opus-4-5).
+  
+  Options: `"low"`, `"medium"`, `"high"`
+  
+  Example: `"medium"`
+</ParamField>
+
+<ParamField path="web_search" type="boolean" default={false}>
+  Enable native web search for models that support it.
+  
+  Example: `true`
+</ParamField>
+
+<ParamField path="free_models_only" type="boolean" default={false}>
+  When using auto routing, only route to free models.
+  
+  Example: `false`
+</ParamField>
+
+<ParamField path="no_reasoning" type="boolean" default={false}>
+  When using auto routing, exclude reasoning models from selection.
+  
+  Example: `false`
+</ParamField>
+
+<ParamField path="plugins" type="array">
+  Plugins to enable for this request.
+  
+  Example:
+  ```json
+  [{"id": "response-healing"}]
+  ```
+  
+  Available plugins:
+  - `response-healing`: Automatically repairs malformed JSON responses
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string">
+  Unique identifier for the completion.
+</ResponseField>
+
+<ResponseField name="object" type="string">
+  Object type, always `"chat.completion"`.
+</ResponseField>
+
+<ResponseField name="created" type="number">
+  Unix timestamp of when the completion was created.
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  The model used for completion.
+</ResponseField>
+
+<ResponseField name="choices" type="array">
+  Array of completion choices.
+  
+  Each choice contains:
+  - `index` (number): Choice index
+  - `message` (object): The generated message
+    - `role` (string): Always `"assistant"`
+    - `content` (string | null): Message content
+    - `reasoning` (string | null, optional): Internal reasoning for reasoning models
+    - `tool_calls` (array, optional): Tool calls made by the model
+    - `images` (array, optional): Generated images
+  - `finish_reason` (string): Why generation stopped (`"stop"`, `"length"`, `"tool_calls"`, etc.)
+</ResponseField>
+
+<ResponseField name="usage" type="object">
+  Token usage information.
+  
+  Contains:
+  - `prompt_tokens` (number): Tokens in the prompt
+  - `completion_tokens` (number): Tokens in the completion
+  - `total_tokens` (number): Total tokens used
+  - `reasoning_tokens` (number, optional): Tokens used for reasoning
+  - `prompt_tokens_details` (object, optional): Breakdown of prompt tokens
+    - `cached_tokens` (number): Tokens served from cache
+  - `cost_usd_total` (number, optional): Total cost in USD
+  - `cost_usd_input` (number, optional): Input cost in USD
+  - `cost_usd_output` (number, optional): Output cost in USD
+  - `cost_usd_cached_input` (number, optional): Cached input cost in USD
+  - `cost_usd_request` (number, optional): Per-request cost in USD
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Routing and provider information.
+  
+  Contains:
+  - `requested_model` (string): Model requested by client
+  - `requested_provider` (string | null): Provider requested by client
+  - `used_model` (string): Actual model used
+  - `used_provider` (string): Actual provider used
+  - `underlying_used_model` (string): Provider's native model name
+  - `routing` (array, optional): Routing attempts and errors
+</ResponseField>
+
+## Examples
+
+### Basic Chat Completion
+
+<CodeGroup>
+
+```bash cURL
+curl https://api.llmgateway.io/v1/chat/completions \
+  -H "Authorization: Bearer $LLMGATEWAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [
+      {"role": "user", "content": "Hello, how are you?"}
+    ]
+  }'
+```
+
+```python Python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ.get("LLMGATEWAY_API_KEY"),
+    base_url="https://api.llmgateway.io/v1"
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "user", "content": "Hello, how are you?"}
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+```javascript JavaScript
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+  apiKey: process.env.LLMGATEWAY_API_KEY,
+  baseURL: 'https://api.llmgateway.io/v1'
+});
+
+const response = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [
+    { role: 'user', content: 'Hello, how are you?' }
+  ]
+});
+
+console.log(response.choices[0].message.content);
+```
+
+</CodeGroup>
+
+### Streaming Response
+
+<CodeGroup>
+
+```python Python
+for chunk in client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Tell me a story"}],
+    stream=True
+):
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+```
+
+```javascript JavaScript
+const stream = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: 'Tell me a story' }],
+  stream: true
+});
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta?.content || '');
+}
+```
+
+</CodeGroup>
+
+### JSON Mode
+
+<CodeGroup>
+
+```python Python
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "user", "content": "List 3 colors in JSON format"}
+    ],
+    response_format={"type": "json_object"}
+)
+
+import json
+colors = json.loads(response.choices[0].message.content)
+print(colors)
+```
+
+```javascript JavaScript
+const response = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [
+    { role: 'user', content: 'List 3 colors in JSON format' }
+  ],
+  response_format: { type: 'json_object' }
+});
+
+const colors = JSON.parse(response.choices[0].message.content);
+console.log(colors);
+```
+
+</CodeGroup>
+
+### Function Calling
+
+```python
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get the current weather in a location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    }
+                },
+                "required": ["location"]
+            }
+        }
+    }
+]
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What's the weather in Boston?"}],
+    tools=tools,
+    tool_choice="auto"
+)
+
+if response.choices[0].message.tool_calls:
+    tool_call = response.choices[0].message.tool_calls[0]
+    print(f"Function: {tool_call.function.name}")
+    print(f"Arguments: {tool_call.function.arguments}")
+```
+
+### Auto Routing
+
+```python
+# Automatically select the cheapest model
+response = client.chat.completions.create(
+    model="auto",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+print(f"Used: {response.metadata['used_provider']}/{response.metadata['used_model']}")
+print(f"Cost: ${response.usage.cost_usd_total}")
+```
+
+### Vision (Multimodal)
+
+```python
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "What's in this image?"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "https://example.com/image.jpg"
+                    }
+                }
+            ]
+        }
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+## Response Example
+
+```json
+{
+  "id": "chatcmpl-abc123",
+  "object": "chat.completion",
+  "created": 1677858242,
+  "model": "gpt-4o",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hello! I'm doing well, thank you for asking. How can I help you today?"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 18,
+    "total_tokens": 30,
+    "cost_usd_total": 0.00045,
+    "cost_usd_input": 0.00018,
+    "cost_usd_output": 0.00027
+  },
+  "metadata": {
+    "requested_model": "gpt-4o",
+    "requested_provider": null,
+    "used_model": "gpt-4o",
+    "used_provider": "openai",
+    "underlying_used_model": "gpt-4o-2024-08-06"
+  }
+}
+```
+
+## Error Responses
+
+### Invalid Parameters
+
+```json
+{
+  "error": {
+    "message": "Invalid request parameters",
+    "type": "invalid_request_error",
+    "param": null,
+    "code": "invalid_parameters"
+  }
+}
+```
+
+### Insufficient Credits
+
+```json
+{
+  "error": true,
+  "status": 402,
+  "message": "Organization has insufficient credits"
+}
+```
+
+### Model Not Available
+
+```json
+{
+  "error": true,
+  "status": 400,
+  "message": "No provider key set for any of the providers that support model gpt-4o"
+}
+```

@@ -1,0 +1,397 @@
+---
+title: Multi-Provider Support
+description: Automatic provider routing, fallback, and intelligent load balancing across multiple LLM providers
+---
+
+## Overview
+
+LLM Gateway supports **20+ AI providers** and can automatically route requests to the best available provider based on cost, uptime, latency, and availability.
+
+## Supported Providers
+
+<CardGroup cols={3}>
+  <Card title="OpenAI" icon="circle-nodes">
+    GPT-4o, GPT-4, GPT-3.5 Turbo, and more
+  </Card>
+  
+  <Card title="Anthropic" icon="brain">
+    Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku
+  </Card>
+  
+  <Card title="Google AI Studio" icon="google">
+    Gemini 2.0 Flash, Gemini 1.5 Pro
+  </Card>
+  
+  <Card title="Google Vertex AI" icon="cloud">
+    Gemini models via Google Cloud
+  </Card>
+  
+  <Card title="AWS Bedrock" icon="aws">
+    Claude, Llama, Mistral via AWS
+  </Card>
+  
+  <Card title="Azure OpenAI" icon="microsoft">
+    Enterprise OpenAI models
+  </Card>
+  
+  <Card title="DeepSeek" icon="sparkles">
+    DeepSeek-V3, DeepSeek-Chat
+  </Card>
+  
+  <Card title="xAI" icon="x">
+    Grok, Grok Vision
+  </Card>
+  
+  <Card title="Groq" icon="bolt">
+    Ultra-fast Llama, Mixtral inference
+  </Card>
+  
+  <Card title="Cerebras" icon="microchip">
+    High-performance Llama models
+  </Card>
+  
+  <Card title="Mistral AI" icon="wind">
+    Mistral Large, Mixtral, Pixtral
+  </Card>
+  
+  <Card title="Perplexity" icon="magnifying-glass">
+    Search-augmented models
+  </Card>
+</CardGroup>
+
+## Automatic Provider Selection
+
+When you don't specify a provider, LLM Gateway automatically selects the best one:
+
+```typescript apps/gateway/src/chat/chat.ts
+// Get available providers based on project mode
+if (project.mode === "api-keys") {
+  const providerKeys = await findActiveProviderKeys(project.organizationId);
+  availableProviders = providerKeys.map((key) => key.provider);
+} else if (project.mode === "credits" || project.mode === "hybrid") {
+  // Check which providers have environment tokens available
+  const envProviders: string[] = [];
+  for (const provider of supportedProviders) {
+    if (hasProviderEnvironmentToken(provider as Provider)) {
+      envProviders.push(provider);
+    }
+  }
+  availableProviders = envProviders;
+}
+```
+
+### Selection Criteria
+
+The gateway considers multiple factors:
+
+1. **Cost** - Prioritizes cheaper providers for equivalent models
+2. **Uptime** - Avoids providers with recent failures (less than 90% uptime)
+3. **Latency** - Favors faster providers in streaming mode
+4. **Availability** - Only considers providers you have configured
+5. **Capabilities** - Filters by required features (vision, tools, JSON output, etc.)
+
+<Note>
+The selection algorithm is optimized to minimize cost while maintaining reliability and performance.
+</Note>
+
+## Provider Routing Metadata
+
+Every response includes detailed routing information:
+
+```json
+{
+  "metadata": {
+    "routing": {
+      "availableProviders": ["openai", "anthropic", "google-ai-studio"],
+      "selectedProvider": "anthropic",
+      "selectionReason": "lowest-cost",
+      "providerScores": [
+        {
+          "providerId": "anthropic",
+          "score": 0.95,
+          "price": 0.000003,
+          "uptime": 99.8,
+          "latency": 245,
+          "throughput": 42
+        },
+        {
+          "providerId": "openai",
+          "score": 0.87,
+          "price": 0.0000025,
+          "uptime": 99.5,
+          "latency": 312,
+          "throughput": 38
+        }
+      ]
+    }
+  }
+}
+```
+
+## Automatic Fallback
+
+If a provider fails, LLM Gateway automatically retries with alternative providers:
+
+```typescript apps/gateway/src/chat/tools/retry-with-fallback.ts
+export const MAX_RETRIES = 3;
+
+export function shouldRetryRequest(
+  statusCode: number,
+  errorType: string,
+  attempt: number,
+): boolean {
+  if (attempt >= MAX_RETRIES) {
+    return false;
+  }
+  
+  // Retry on server errors and rate limits
+  if (statusCode >= 500 || statusCode === 429) {
+    return true;
+  }
+  
+  // Retry on timeout and network errors
+  if (errorType === "timeout" || errorType === "network") {
+    return true;
+  }
+  
+  return false;
+}
+```
+
+### Retry Strategy
+
+The gateway implements smart retry logic:
+
+- **Up to 3 retries** per request
+- **Exponential backoff** between retries
+- **Automatic provider switching** on failure
+- **Excludes failed providers** from subsequent attempts
+- **Preserves successful responses** even if billing fails
+
+<Tabs>
+  <Tab title="Example: Automatic Fallback">
+    ```bash
+    # Request to gpt-4o
+    curl https://api.llmgateway.io/v1/chat/completions \
+      -H "Authorization: Bearer YOUR_API_KEY" \
+      -d '{
+        "model": "gpt-4o",
+        "messages": [{"role": "user", "content": "Hello"}]
+      }'
+    
+    # If OpenAI fails, gateway automatically tries:
+    # 1. Google AI Studio (gpt-4o equivalent)
+    # 2. Anthropic Claude 3.5 Sonnet
+    # 3. Other configured providers
+    ```
+  </Tab>
+  
+  <Tab title="Response Metadata">
+    ```json
+    {
+      "metadata": {
+        "routing": [
+          {
+            "provider": "openai",
+            "model": "gpt-4o-2024-08-06",
+            "status_code": 503,
+            "error_type": "service_unavailable",
+            "succeeded": false
+          },
+          {
+            "provider": "google-ai-studio",
+            "model": "gemini-2.0-flash-001",
+            "status_code": 200,
+            "error_type": "",
+            "succeeded": true
+          }
+        ]
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Low-Uptime Fallback
+
+The gateway monitors provider health and automatically routes around unhealthy providers:
+
+```typescript apps/gateway/src/chat/chat.ts
+// Fetch uptime metrics for the requested provider
+const metrics = metricsMap.get(`${baseModelId}:${usedProvider}`);
+
+// If uptime is below 90%, route to an alternative
+if (metrics && metrics.uptime !== undefined && metrics.uptime < 90) {
+  const betterUptimeProviders = availableModelProviders.filter((p) => {
+    const providerMetrics = allMetricsMap.get(`${modelId}:${p.providerId}`);
+    return (!providerMetrics || (providerMetrics.uptime ?? 100) > currentUptime);
+  });
+  
+  // Select cheapest provider with better uptime
+  const cheapestResult = getCheapestFromAvailableProviders(
+    betterUptimeProviders,
+    modelWithPricing,
+    { metricsMap: allMetricsMap, isStreaming: stream }
+  );
+}
+```
+
+<Warning>
+You can disable automatic fallback by setting the `X-No-Fallback: true` header.
+</Warning>
+
+## Provider Configuration
+
+LLM Gateway supports three project modes:
+
+### 1. API Keys Mode
+
+Use your own provider API keys:
+
+```bash
+# Configure in the dashboard or via API
+POST /keys/provider
+{
+  "provider": "anthropic",
+  "token": "sk-ant-...",
+  "organizationId": "org_..."
+}
+```
+
+### 2. Credits Mode
+
+Use LLM Gateway's provider keys with credit-based billing:
+
+```python
+client = OpenAI(
+    base_url="https://api.llmgateway.io/v1",
+    api_key="YOUR_LLMGATEWAY_API_KEY"
+)
+
+# Automatically uses gateway's provider keys
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello"}]
+)
+```
+
+### 3. Hybrid Mode
+
+Combine your own keys with gateway credits:
+
+- Uses your provider keys when available
+- Falls back to gateway credits when needed
+- Best for cost optimization and reliability
+
+## Environment Variables
+
+Providers can be configured via environment variables:
+
+```typescript packages/models/src/providers.ts
+export interface ProviderDefinition {
+  id: string;
+  name: string;
+  env: {
+    required: {
+      apiKey?: string;
+      [key: string]: string | undefined;
+    };
+    optional?: Record<string, string>;
+  };
+}
+
+// Example: OpenAI
+{
+  id: "openai",
+  name: "OpenAI",
+  env: {
+    required: {
+      apiKey: "LLM_OPENAI_API_KEY"
+    }
+  }
+}
+
+// Example: Google Vertex AI
+{
+  id: "google-vertex",
+  name: "Google Vertex AI",
+  env: {
+    required: {
+      apiKey: "LLM_GOOGLE_VERTEX_API_KEY",
+      project: "LLM_GOOGLE_CLOUD_PROJECT"
+    },
+    optional: {
+      region: "LLM_GOOGLE_VERTEX_REGION"
+    }
+  }
+}
+```
+
+## Custom Providers
+
+Add custom OpenAI-compatible providers:
+
+```bash
+POST /keys/provider
+{
+  "provider": "custom",
+  "providerName": "my-custom-provider",
+  "baseUrl": "https://api.example.com/v1",
+  "token": "your-api-key",
+  "organizationId": "org_..."
+}
+```
+
+Then use it:
+
+```python
+response = client.chat.completions.create(
+    model="custom:my-custom-provider/model-name",
+    messages=[{"role": "user", "content": "Hello"}]
+)
+```
+
+## Provider Metrics
+
+Monitor provider performance in real-time:
+
+```sql packages/db/src/queries.ts
+export async function getProviderMetricsForCombinations(
+  combinations: Array<{ modelId: string; providerId: string }>
+): Promise<Map<string, ProviderMetrics>> {
+  // Returns uptime, latency, and throughput for each provider
+  // Data is aggregated from the last 5 minutes of requests
+}
+```
+
+Metrics include:
+
+- **Uptime** - Success rate (200 status codes)
+- **Average Latency** - Time to first token
+- **Throughput** - Tokens per second
+
+## Provider Priority
+
+Some providers have priority weights for routing:
+
+```typescript packages/models/src/providers.ts
+{
+  id: "google-ai-studio",
+  priority: 0.8  // 20% lower priority (score × 1.25)
+}
+
+{
+  id: "aws-bedrock",
+  priority: 0.9  // 10% lower priority (score × 1.11)
+}
+```
+
+<Tip>
+Priority affects the routing score calculation. Lower priority providers are chosen less often unless they have significantly better cost or performance.
+</Tip>
+
+## Related Documentation
+
+- [Unified API Interface](/features/unified-api)
+- [Rate Limiting](/features/rate-limiting)
+- [API Keys Management](/features/api-keys)

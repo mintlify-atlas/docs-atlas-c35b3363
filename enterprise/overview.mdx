@@ -1,0 +1,103 @@
+---
+title: Enterprise Overview
+description: Learn about LLM Gateway Enterprise features and licensing
+---
+
+## What is LLM Gateway Enterprise?
+
+LLM Gateway Enterprise extends the open-source LLM Gateway with advanced features for production deployments, team collaboration, and comprehensive data governance.
+
+## Open Source vs Enterprise
+
+### Open Source (AGPLv3)
+
+The core LLM Gateway is open source and includes:
+
+- **Multi-provider support** - Connect to OpenAI, Anthropic, Google, and 20+ LLM providers
+- **Unified API** - OpenAI-compatible API format for easy integration
+- **Usage analytics** - Track requests, tokens, costs, and performance
+- **Request routing** - Intelligent routing and load balancing
+- **Response caching** - Redis-based caching for cost savings
+- **API key management** - Secure key storage and rotation
+- **Basic data retention** - 30 days for all users
+
+### Enterprise Features
+
+Enterprise features are located in the `ee/` directory and require a commercial license:
+
+- **Advanced billing and subscription management** - Stripe integration for payments, subscriptions, and invoicing
+- **Extended data retention** - Unlimited retention vs 30 days for open source
+- **Custom provider key configurations** - Use your own provider API keys (Pro plan)
+- **Team and organization management** - Multi-user access with role-based permissions
+- **Audit logging** - Comprehensive audit trails for compliance
+- **Security guardrails** - Built-in PII detection, jailbreak prevention, and content filtering
+- **Priority support** - Direct access to the LLM Gateway team
+- **SLA guarantees** - Uptime and support response commitments
+
+## Deployment Options
+
+LLM Gateway Enterprise can be deployed in multiple ways:
+
+### Self-Hosted
+
+Deploy on your own infrastructure with:
+
+- **Docker Compose** - Single or multi-container deployments
+- **Kubernetes** - Scalable production deployments with Helm charts
+- **Cloud platforms** - AWS, GCP, Azure with infrastructure-as-code
+
+### Hosted
+
+Use our managed service at [llmgateway.io](https://llmgateway.io):
+
+- Fully managed infrastructure
+- Automatic updates and security patches
+- 99.9% uptime SLA
+- Enterprise support included
+
+## Getting Started
+
+<Steps>
+
+<Step title="Contact Sales">
+Email [contact@llmgateway.io](mailto:contact@llmgateway.io) to discuss your requirements and get a commercial license.
+</Step>
+
+<Step title="Review License">
+Review the [Enterprise License](/enterprise/licensing) terms and subscription agreement.
+</Step>
+
+<Step title="Deploy">
+Choose your deployment method:
+- [Docker deployment](/enterprise/deployment/docker)
+- [Kubernetes deployment](/enterprise/deployment/kubernetes)
+</Step>
+
+<Step title="Configure">
+Set up [environment variables](/enterprise/deployment/environment-variables) and configure your instance.
+</Step>
+
+</Steps>
+
+## Architecture
+
+LLM Gateway Enterprise consists of multiple services:
+
+- **Gateway** - Routes LLM requests to providers (port 4001)
+- **API** - Backend for user management and analytics (port 4002)
+- **UI** - Web dashboard (port 3002)
+- **Playground** - Interactive testing environment (port 3003)
+- **Admin** - Internal administration dashboard (port 3006)
+- **PostgreSQL** - Primary database (port 5432)
+- **Redis** - Caching and queues (port 6379)
+
+## Support
+
+Enterprise customers receive:
+
+- **Priority email support** - 24-hour response time
+- **Dedicated Slack channel** - Direct access to engineering team
+- **Quarterly business reviews** - Architecture and optimization guidance
+- **Custom feature development** - Tailored solutions for your needs
+
+Contact [contact@llmgateway.io](mailto:contact@llmgateway.io) for support.

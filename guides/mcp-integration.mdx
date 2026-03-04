@@ -1,0 +1,612 @@
+---
+title: "MCP Integration"
+description: "Connect models to external tools and data using Model Context Protocol"
+icon: "plug"
+---
+
+## What is MCP?
+
+The **Model Context Protocol (MCP)** is an open standard that allows AI models to securely interact with external tools, data sources, and services. LLM Gateway implements MCP to enable:
+
+- **File system access**: Read and write local files
+- **Database queries**: Connect to SQL/NoSQL databases
+- **API integrations**: Call external REST/GraphQL APIs
+- **Custom tools**: Execute any function or service
+- **Real-time data**: Access live information sources
+
+<Note>
+  MCP is supported by Claude Code, Cursor, Windsurf, and other AI development tools.
+</Note>
+
+## Architecture
+
+LLM Gateway provides an MCP server that:
+
+1. **Exposes tools** for LLM operations (chat, list-models, generate-image)
+2. **Authenticates** using your API keys
+3. **Routes requests** through the gateway
+4. **Returns responses** in MCP format
+
+```
+AI Tool (Claude Code)
+       ↓
+   MCP Client
+       ↓
+LLM Gateway MCP Server (HTTP/SSE)
+       ↓
+Provider APIs (OpenAI, Anthropic, etc.)
+```
+
+## Authentication
+
+LLM Gateway's MCP server supports OAuth 2.0 authentication for seamless integration with AI tools.
+
+### OAuth Flow
+
+The server implements:
+
+- **Authorization endpoint**: `/oauth/authorize`
+- **Token endpoint**: `/oauth/token`
+- **Registration endpoint**: `/oauth/register`
+- **Metadata**: `/.well-known/oauth-authorization-server`
+
+### Supported Grant Types
+
+<Tabs>
+  <Tab title="Authorization Code">
+    Standard OAuth flow with PKCE (Proof Key for Code Exchange):
+    
+    1. Client redirects user to `/oauth/authorize`
+    2. User authorizes with their API key
+    3. Server returns authorization code
+    4. Client exchanges code for access token
+    5. Client uses token for MCP requests
+    
+    **Used by**: Claude Code, Cursor, Windsurf
+  </Tab>
+  
+  <Tab title="Client Credentials">
+    Direct API key authentication:
+    
+    1. Client sends API key to `/oauth/token`
+    2. Server validates and returns token
+    3. Client uses token for MCP requests
+    
+    **Used by**: Server-to-server integrations
+  </Tab>
+</Tabs>
+
+### Registering a Client
+
+Before using OAuth, register your client:
+
+```bash
+curl -X POST https://api.llmgateway.io/oauth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "api_key": "your-llm-gateway-api-key",
+    "client_name": "My AI Tool",
+    "redirect_uris": [
+      "https://localhost:8080/callback",
+      "http://127.0.0.1:8080/callback"
+    ]
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "client_id": "your-llm-gateway-api-key",
+  "client_secret": "your-llm-gateway-api-key",
+  "client_name": "My AI Tool",
+  "redirect_uris": [
+    "https://localhost:8080/callback",
+    "http://127.0.0.1:8080/callback"
+  ],
+  "grant_types": ["authorization_code", "client_credentials"],
+  "token_endpoint_auth_method": "client_secret_basic"
+}
+```
+
+<Info>
+  For MCP, the `client_id` and `client_secret` are both your LLM Gateway API key.
+</Info>
+
+## MCP Endpoints
+
+### Server Endpoint
+
+```
+https://api.llmgateway.io/mcp
+```
+
+**Methods:**
+- `GET`: Establish SSE connection or get server info
+- `POST`: Send JSON-RPC requests
+- `DELETE`: Terminate session
+
+### Server Information
+
+Get server metadata:
+
+```bash
+curl https://api.llmgateway.io/mcp \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+**Response:**
+
+```json
+{
+  "name": "llmgateway",
+  "version": "1.0.0",
+  "description": "LLM Gateway MCP Server - Access multiple LLM providers through a unified API",
+  "protocolVersion": "2024-11-05",
+  "capabilities": {
+    "tools": {}
+  }
+}
+```
+
+### SSE Connection (Streamable Transport)
+
+Establish a persistent connection for real-time updates:
+
+```bash
+curl https://api.llmgateway.io/mcp \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Accept: text/event-stream"
+```
+
+The server returns:
+1. **Session ID** in `mcp-session-id` header
+2. **Endpoint URL** via SSE event
+3. **Messages** as they're processed
+
+## Available Tools
+
+The MCP server exposes these tools:
+
+### 1. chat
+
+Generate text responses using any LLM.
+
+**Use for**: Text generation, conversations, analysis, coding, etc.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "chat",
+    "arguments": {
+      "model": "gpt-4o",
+      "messages": [
+        {"role": "user", "content": "Explain quantum computing"}
+      ],
+      "temperature": 0.7,
+      "max_tokens": 500
+    }
+  }
+}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `model` | string | Yes | Model ID (e.g., "gpt-4o") |
+| `messages` | array | Yes | Conversation history |
+| `temperature` | number | No | Randomness (0.0-2.0) |
+| `max_tokens` | number | No | Max response length |
+
+### 2. list-models
+
+List all available LLM models with capabilities and pricing.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "list-models",
+    "arguments": {
+      "family": "openai",
+      "limit": 10
+    }
+  }
+}
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `family` | string | Filter by provider ("openai", "anthropic", etc.) |
+| `limit` | number | Max models to return (default: 20) |
+| `include_deactivated` | boolean | Include inactive models |
+| `exclude_deprecated` | boolean | Exclude deprecated models |
+
+### 3. generate-image
+
+Create images from text descriptions.
+
+**Use for**: Image generation, artwork, diagrams, etc.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "generate-image",
+    "arguments": {
+      "prompt": "A serene mountain landscape at sunset",
+      "model": "qwen-image-plus",
+      "size": "1024x1024",
+      "n": 1
+    }
+  }
+}
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `prompt` | string | Image description |
+| `model` | string | Image model (default: "qwen-image-plus") |
+| `size` | string | Image dimensions (e.g., "1024x1024") |
+| `n` | number | Number of images (1-4) |
+
+**Response format:**
+
+Images are returned as base64-encoded data URLs or as MCP image content blocks.
+
+### 4. generate-nano-banana
+
+Generate images using Gemini 3 Pro Image Preview with file saving.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "generate-nano-banana",
+    "arguments": {
+      "prompt": "Cyberpunk cityscape at night",
+      "aspect_ratio": "16:9",
+      "filename": "cityscape.png"
+    }
+  }
+}
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `prompt` | string | Image description |
+| `aspect_ratio` | string | "1:1", "16:9", "4:3", or "5:4" |
+| `filename` | string | Optional filename (saved to UPLOAD_DIR) |
+
+<Note>
+  Set `UPLOAD_DIR` environment variable to enable file saving.
+</Note>
+
+### 5. list-image-models
+
+List all available image generation models.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "list-image-models",
+    "arguments": {}
+  }
+}
+```
+
+Returns models with `imageGenerations: true` capability.
+
+## Client Setup
+
+### Claude Code
+
+Configure Claude Code to use LLM Gateway's MCP server:
+
+<Steps>
+  <Step title="Install Claude Code">
+    Follow the official installation guide at [anthropic.ai/claude-code](https://anthropic.ai/claude-code).
+  </Step>
+  
+  <Step title="Add MCP Server">
+    Edit your Claude Code config file:
+    
+    **macOS/Linux**: `~/.claude/mcp-servers.json`
+    
+    **Windows**: `%APPDATA%\Claude\mcp-servers.json`
+    
+    ```json
+    {
+      "mcpServers": {
+        "llmgateway": {
+          "url": "https://api.llmgateway.io/mcp",
+          "type": "sse",
+          "auth": {
+            "type": "oauth2",
+            "authorization_endpoint": "https://api.llmgateway.io/oauth/authorize",
+            "token_endpoint": "https://api.llmgateway.io/oauth/token",
+            "client_id": "your-api-key"
+          }
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Restart Claude Code">
+    Restart the application to load the new MCP server.
+  </Step>
+  
+  <Step title="Authorize">
+    Claude Code will prompt for authorization. Follow the OAuth flow to grant access.
+  </Step>
+</Steps>
+
+See the [Claude Code setup guide](/guides/mcp-integration) for detailed instructions.
+
+### Cursor
+
+Add LLM Gateway as an MCP server in Cursor:
+
+<Steps>
+  <Step title="Open Settings">
+    Press `Cmd/Ctrl + ,` to open settings.
+  </Step>
+  
+  <Step title="Navigate to MCP">
+    Go to **Extensions** → **MCP Servers**.
+  </Step>
+  
+  <Step title="Add Server">
+    Click **Add Server** and enter:
+    - **Name**: LLM Gateway
+    - **URL**: `https://api.llmgateway.io/mcp`
+    - **Auth**: OAuth 2.0
+    - **API Key**: Your LLM Gateway API key
+  </Step>
+  
+  <Step title="Connect">
+    Click **Connect** and authorize the integration.
+  </Step>
+</Steps>
+
+See the [Cursor setup guide](/guides/mcp-integration) for more details.
+
+### Custom Client
+
+Build your own MCP client:
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+const client = new Client({
+  name: "my-mcp-client",
+  version: "1.0.0",
+});
+
+const transport = new SSEClientTransport(
+  new URL("https://api.llmgateway.io/mcp"),
+  {
+    headers: {
+      Authorization: `Bearer YOUR_API_KEY`,
+    },
+  }
+);
+
+await client.connect(transport);
+
+// List available tools
+const tools = await client.listTools();
+console.log("Available tools:", tools);
+
+// Call the chat tool
+const result = await client.callTool({
+  name: "chat",
+  arguments: {
+    model: "gpt-4o",
+    messages: [{role: "user", content: "Hello!"}],
+  },
+});
+
+console.log("Response:", result);
+```
+
+## Session Management
+
+MCP connections use sessions to maintain state:
+
+### Creating a Session
+
+1. Send `GET` request with `Accept: text/event-stream`
+2. Receive `mcp-session-id` header
+3. Use session ID for subsequent requests
+
+### Using Sessions
+
+Include session ID in POST requests:
+
+```bash
+curl -X POST https://api.llmgateway.io/mcp \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "mcp-session-id: YOUR_SESSION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+```
+
+### Terminating Sessions
+
+```bash
+curl -X DELETE https://api.llmgateway.io/mcp \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "mcp-session-id: YOUR_SESSION_ID"
+```
+
+Sessions automatically clean up after disconnection.
+
+## Security Considerations
+
+<Warning>
+  **Important security practices:**
+  
+  - Never expose API keys in client-side code
+  - Use HTTPS for all MCP connections
+  - Implement rate limiting on your end
+  - Rotate API keys regularly
+  - Monitor usage for anomalies
+</Warning>
+
+### Session Ownership
+
+Sessions are tied to API keys:
+- Each session belongs to one API key
+- Attempts to use a session with a different key are rejected
+- This prevents session hijacking
+
+### Redirect URI Validation
+
+For OAuth flows:
+- Redirect URIs must be registered during client registration
+- Loopback addresses (localhost, 127.0.0.1) are allowed per RFC 8252
+- HTTPS required for non-loopback URIs
+- Prevents authorization code interception
+
+## Error Handling
+
+MCP uses JSON-RPC error codes:
+
+| Code | Message | Description |
+|------|---------|-------------|
+| -32700 | Parse error | Invalid JSON |
+| -32600 | Invalid Request | Malformed request |
+| -32601 | Method not found | Unknown method |
+| -32602 | Invalid params | Invalid parameters |
+| -32603 | Internal error | Server error |
+| -32001 | Unauthorized | Authentication failed |
+
+**Example error response:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32001,
+    "message": "Authentication required. Provide API key via Authorization header or x-api-key."
+  }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Connection Management" icon="link">
+    - Reuse SSE connections when possible
+    - Implement reconnection logic with exponential backoff
+    - Close sessions when done to free resources
+    - Monitor connection health with ping requests
+  </Accordion>
+  
+  <Accordion title="Error Handling" icon="triangle-exclamation">
+    - Handle all JSON-RPC error codes
+    - Retry transient errors (500, 503)
+    - Don't retry auth errors (401, 403)
+    - Log errors for debugging
+    - Provide user-friendly error messages
+  </Accordion>
+  
+  <Accordion title="Performance" icon="gauge">
+    - Batch requests when possible
+    - Cache model lists locally
+    - Stream responses for better UX
+    - Use appropriate timeouts
+    - Monitor latency and throughput
+  </Accordion>
+  
+  <Accordion title="Security" icon="shield">
+    - Store API keys securely (env vars, secrets manager)
+    - Validate all inputs before sending
+    - Implement rate limiting
+    - Monitor for unusual activity
+    - Rotate keys periodically
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection Refused" icon="plug-circle-xmark">
+    **Possible causes:**
+    - Invalid API key
+    - Network issues
+    - Firewall blocking requests
+    
+    **Solutions:**
+    - Verify API key is correct
+    - Check network connectivity
+    - Ensure firewall allows HTTPS
+  </Accordion>
+  
+  <Accordion title="Session Ownership Error" icon="ban">
+    **Error**: "Session belongs to a different API key"
+    
+    **Cause**: Trying to use a session ID with a different API key
+    
+    **Solution**: Create a new session or use the correct API key
+  </Accordion>
+  
+  <Accordion title="OAuth Redirect Mismatch" icon="route">
+    **Error**: "Invalid redirect_uri"
+    
+    **Cause**: Redirect URI not registered for client
+    
+    **Solution**: Register the redirect URI via `/oauth/register`
+  </Accordion>
+  
+  <Accordion title="Tool Not Found" icon="toolbox">
+    **Error**: "Method not found: tools/call"
+    
+    **Cause**: Incorrect JSON-RPC request format
+    
+    **Solution**: Ensure proper request structure (see examples above)
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="AI Tools Setup" icon="robot" href="/guides/mcp-integration">
+    Configure Claude Code, Cursor, and Windsurf.
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api-reference/introduction">
+    Explore the complete API documentation.
+  </Card>
+  
+  <Card title="Playground" icon="play" href="/guides/playground">
+    Test MCP tools in the interactive playground.
+  </Card>
+  
+  <Card title="Projects" icon="folder" href="/guides/projects">
+    Manage API keys and project settings.
+  </Card>
+</CardGroup>

@@ -1,0 +1,481 @@
+---
+title: "Organizations"
+description: "Manage teams, billing, and projects with organizations"
+icon: "building"
+---
+
+## What are Organizations?
+
+Organizations are the top-level entity in LLM Gateway. They contain:
+
+- **Projects**: Logical groupings of API keys and configurations
+- **Team Members**: Users with different permission levels
+- **Billing**: Credits, subscriptions, and payment methods
+- **Provider Keys**: Shared API keys for upstream providers
+- **Usage Analytics**: Aggregated usage across all projects
+
+<Note>
+  You can belong to multiple organizations and switch between them in the dashboard.
+</Note>
+
+## Creating an Organization
+
+### Via Dashboard
+
+<Steps>
+  <Step title="Open Organization Menu">
+    Click your current organization name in the top navigation.
+  </Step>
+  
+  <Step title="Create New Organization">
+    Select **Create Organization** from the dropdown.
+  </Step>
+  
+  <Step title="Enter Details">
+    Provide a name for your organization (e.g., "Acme Corp", "Personal Projects").
+  </Step>
+  
+  <Step title="Configure Billing">
+    Your billing email is pre-filled. Update if needed.
+  </Step>
+</Steps>
+
+A **Default Project** is automatically created in new organizations.
+
+### Via API
+
+Create an organization programmatically:
+
+```bash
+curl -X POST https://api.llmgateway.io/api/v1/organizations \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Corp"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "organization": {
+    "id": "org_123abc",
+    "name": "Acme Corp",
+    "billingEmail": "user@example.com",
+    "credits": "0",
+    "plan": "free",
+    "retentionLevel": "none",
+    "status": "active",
+    "isPersonal": false,
+    "createdAt": "2024-03-15T10:00:00Z"
+  }
+}
+```
+
+<Info>
+  Free plan users can create up to 3 organizations. Contact support to increase this limit.
+</Info>
+
+## Organization Settings
+
+### Basic Information
+
+Update your organization details:
+
+```bash
+curl -X PATCH https://api.llmgateway.io/api/v1/organizations/org_123abc \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Corporation",
+    "billingEmail": "billing@acme.com",
+    "billingCompany": "Acme Corp Ltd",
+    "billingAddress": "123 Main St, San Francisco, CA 94105",
+    "billingTaxId": "US123456789"
+  }'
+```
+
+### Data Retention
+
+Control how long request logs are stored:
+
+```bash
+curl -X PATCH https://api.llmgateway.io/api/v1/organizations/org_123abc \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "retentionLevel": "retain"
+  }'
+```
+
+**Retention Levels:**
+
+| Level | Free Plan | Pro Plan | Enterprise |
+|-------|-----------|----------|------------|
+| `none` | 3 days | 3 days | 90 days |
+| `retain` | 3 days | 90 days | Custom |
+
+<Tip>
+  Extended retention requires a Pro or Enterprise plan. Upgrade in your organization settings.
+</Tip>
+
+### Auto Top-Up
+
+Automatically recharge credits when balance falls below a threshold:
+
+```bash
+curl -X PATCH https://api.llmgateway.io/api/v1/organizations/org_123abc \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "autoTopUpEnabled": true,
+    "autoTopUpThreshold": 10,
+    "autoTopUpAmount": 50
+  }'
+```
+
+This configuration will:
+- Trigger when credits fall below $10
+- Automatically charge $50 to your payment method
+- Continue service without interruption
+
+## Team Management
+
+Collaborate with team members by inviting them to your organization.
+
+### User Roles
+
+<Tabs>
+  <Tab title="Owner">
+    **Full control** over the organization:
+    - Manage team members
+    - Access all projects
+    - Manage billing and subscriptions
+    - Configure provider keys
+    - Delete organization
+  </Tab>
+  
+  <Tab title="Admin">
+    **Administrative access** without billing:
+    - Manage team members (except owners)
+    - Access all projects
+    - Configure projects and API keys
+    - View usage analytics
+  </Tab>
+  
+  <Tab title="Developer">
+    **Standard access** for development:
+    - Access assigned projects
+    - Create and manage API keys
+    - View project logs
+    - Use playground
+  </Tab>
+</Tabs>
+
+### Inviting Team Members
+
+<Steps>
+  <Step title="Navigate to Team Settings">
+    Go to **Organization Settings** → **Team**.
+  </Step>
+  
+  <Step title="Send Invitation">
+    Click **Invite Member** and enter:
+    - Email address
+    - Role (Owner, Admin, or Developer)
+  </Step>
+  
+  <Step title="Await Acceptance">
+    The user will receive an email invitation. They must accept to join.
+  </Step>
+</Steps>
+
+### Managing Members
+
+Update a team member's role:
+
+```bash
+curl -X PATCH https://api.llmgateway.io/api/v1/team/member_789xyz \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "role": "admin"
+  }'
+```
+
+Remove a team member:
+
+```bash
+curl -X DELETE https://api.llmgateway.io/api/v1/team/member_789xyz \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+<Warning>
+  Only owners can modify other owners' roles or remove them from the organization.
+</Warning>
+
+## Billing & Credits
+
+### Credit System
+
+LLM Gateway uses a credit system for simplified billing:
+
+- **$1 = 1 credit**
+- Credits are deducted based on token usage
+- Unused credits never expire
+- Refunds return credits to your balance
+
+### Purchasing Credits
+
+<Tabs>
+  <Tab title="Dashboard">
+    1. Navigate to **Billing** in organization settings
+    2. Click **Add Credits**
+    3. Enter amount (minimum $10)
+    4. Complete payment with card or other method
+  </Tab>
+  
+  <Tab title="API">
+    ```bash
+    curl -X POST https://api.llmgateway.io/api/v1/payments/credit-topup \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "organizationId": "org_123abc",
+        "amount": 50
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+### Transaction History
+
+View all transactions for your organization:
+
+```bash
+curl https://api.llmgateway.io/api/v1/organizations/org_123abc/transactions \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "transactions": [
+    {
+      "id": "txn_abc123",
+      "type": "credit_topup",
+      "amount": "50.00",
+      "creditAmount": "50.00",
+      "currency": "USD",
+      "status": "completed",
+      "description": "Credit top-up",
+      "createdAt": "2024-03-15T10:00:00Z"
+    },
+    {
+      "id": "txn_def456",
+      "type": "subscription_start",
+      "amount": "29.00",
+      "currency": "USD",
+      "status": "completed",
+      "description": "Pro Plan - Monthly",
+      "createdAt": "2024-03-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Payment Methods
+
+Add or update payment methods in **Organization Settings** → **Billing** → **Payment Methods**.
+
+Supported payment methods:
+- Credit/debit cards (Visa, Mastercard, Amex)
+- ACH bank transfers (US only)
+- SEPA direct debit (Europe)
+
+## Subscription Plans
+
+<Tabs>
+  <Tab title="Free">
+    **$0/month**
+    
+    - 3-day log retention
+    - Up to 3 organizations
+    - Up to 10 projects per org
+    - Community support
+    - Pay-as-you-go credits
+  </Tab>
+  
+  <Tab title="Pro">
+    **$29/month**
+    
+    - 90-day log retention
+    - Unlimited organizations
+    - Unlimited projects
+    - Provider API key management
+    - Email support
+    - Volume discounts
+  </Tab>
+  
+  <Tab title="Enterprise">
+    **Custom pricing**
+    
+    - Custom log retention
+    - SSO/SAML authentication
+    - Dedicated account manager
+    - SLA guarantees
+    - Custom contracts
+    - On-premise deployment
+    
+    [Contact sales](mailto:contact@llmgateway.io)
+  </Tab>
+</Tabs>
+
+### Upgrading Your Plan
+
+Upgrade to Pro via the dashboard:
+
+1. Go to **Organization Settings** → **Billing**
+2. Click **Upgrade to Pro**
+3. Choose billing frequency (monthly/yearly)
+4. Complete payment setup
+
+For Enterprise, contact our sales team.
+
+## Provider Keys
+
+Configure organization-wide provider API keys to use your own accounts with the gateway.
+
+### Supported Providers
+
+- OpenAI
+- Anthropic (Claude)
+- Google (Gemini, Vertex AI)
+- AWS Bedrock
+- Azure OpenAI
+- Alibaba Cloud (Qwen)
+- Custom OpenAI-compatible endpoints
+
+### Adding Provider Keys
+
+<Steps>
+  <Step title="Navigate to Provider Keys">
+    Go to **Organization Settings** → **Provider Keys**.
+  </Step>
+  
+  <Step title="Add New Key">
+    Click **Add Provider Key** and select your provider.
+  </Step>
+  
+  <Step title="Enter Credentials">
+    Paste your API key and configure any provider-specific options.
+  </Step>
+  
+  <Step title="Test Connection">
+    Click **Test** to verify the key works correctly.
+  </Step>
+</Steps>
+
+For detailed provider setup, see the [Provider Keys Guide](/api-reference/management/provider-keys).
+
+<Tip>
+  When provider keys are configured, requests in **hybrid** or **api-keys** mode will use your keys directly, with no gateway markup.
+</Tip>
+
+## Usage Analytics
+
+Monitor organization-wide usage across all projects:
+
+```bash
+curl https://api.llmgateway.io/api/v1/organizations/org_123abc/usage \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -G \
+  -d "startDate=2024-03-01" \
+  -d "endDate=2024-03-31"
+```
+
+**Metrics include:**
+- Total requests
+- Token usage by model
+- Cost breakdown
+- Error rates
+- Cache hit rates
+- Provider distribution
+
+## Deleting an Organization
+
+Permanently delete an organization:
+
+```bash
+curl -X DELETE https://api.llmgateway.io/api/v1/organizations/org_123abc \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+<Warning>
+  **This action is irreversible and will:**
+  - Delete all projects and API keys
+  - Remove all team members
+  - Delete all logs and analytics
+  - Forfeit remaining credits (no refund)
+  
+  Personal organizations (from dev plans) cannot be deleted this way. Cancel your dev plan at [code.llmgateway.io](https://code.llmgateway.io) instead.
+</Warning>
+
+Only organization owners can delete organizations.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Organization Structure" icon="sitemap">
+    - Create separate orgs for different businesses/clients
+    - Use one organization per team for large companies
+    - Keep personal projects in a separate organization
+    - Name organizations clearly for easy identification
+  </Accordion>
+  
+  <Accordion title="Team Management" icon="users">
+    - Review team member access quarterly
+    - Use the Developer role for most team members
+    - Limit Admin and Owner roles to trusted individuals
+    - Remove access immediately when members leave
+    - Document who has access to what
+  </Accordion>
+  
+  <Accordion title="Billing" icon="credit-card">
+    - Enable auto top-up to prevent service interruptions
+    - Set appropriate threshold and amount
+    - Review transactions monthly
+    - Consider yearly subscription for savings
+    - Set up budget alerts
+  </Accordion>
+  
+  <Accordion title="Security" icon="lock">
+    - Enable 2FA for all owner accounts
+    - Use provider keys instead of credits when possible
+    - Regularly rotate provider API keys
+    - Monitor usage for anomalies
+    - Keep billing email up to date
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Projects" icon="folder" href="/guides/projects">
+    Create and manage projects within your organization.
+  </Card>
+  
+  <Card title="Team Management" icon="users" href="/guides/team">
+    Invite team members and manage permissions.
+  </Card>
+  
+  <Card title="Provider Keys" icon="key" href="/api-reference/management/provider-keys">
+    Configure your own provider API keys.
+  </Card>
+  
+  <Card title="Analytics" icon="chart-line" href="/guides/analytics">
+    Track usage and optimize costs.
+  </Card>
+</CardGroup>

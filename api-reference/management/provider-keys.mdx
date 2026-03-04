@@ -1,0 +1,437 @@
+---
+title: Provider Keys
+description: Configure provider API keys for OpenAI, Anthropic, and more
+---
+
+Provider keys allow you to use your own API keys from LLM providers like OpenAI, Anthropic, Google, etc. This enables you to leverage your existing relationships and pricing with providers.
+
+## Create Provider Key
+
+<ParamField body="provider" type="string" required>
+  Provider ID (e.g., "openai", "anthropic", "google-vertex-ai") or "custom" for custom providers
+</ParamField>
+
+<ParamField body="token" type="string" required>
+  The provider's API key
+</ParamField>
+
+<ParamField body="organizationId" type="string" required>
+  ID of the organization this key belongs to
+</ParamField>
+
+<ParamField body="name" type="string">
+  Custom name for the provider (lowercase a-z only, required for custom providers)
+</ParamField>
+
+<ParamField body="baseUrl" type="string">
+  Custom base URL (for custom providers or proxy endpoints)
+</ParamField>
+
+<ParamField body="options" type="object">
+  Provider-specific configuration options
+  
+  <Expandable title="Options">
+    <ParamField body="aws_bedrock_region_prefix" type="'us.' | 'global.' | 'eu.'">
+      AWS Bedrock region prefix
+    </ParamField>
+    
+    <ParamField body="azure_resource" type="string">
+      Azure resource name
+    </ParamField>
+    
+    <ParamField body="azure_api_version" type="string">
+      Azure API version
+    </ParamField>
+    
+    <ParamField body="azure_deployment_type" type="'openai' | 'ai-foundry'">
+      Azure deployment type
+    </ParamField>
+    
+    <ParamField body="azure_validation_model" type="string">
+      Model to use for validating Azure credentials
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="providerKey" type="object">
+  The created provider key with masked token
+  
+  <Expandable title="Provider Key Object">
+    <ResponseField name="id" type="string">
+      Unique identifier
+    </ResponseField>
+    
+    <ResponseField name="maskedToken" type="string">
+      Masked version of the API key
+    </ResponseField>
+    
+    <ResponseField name="provider" type="string">
+      Provider ID
+    </ResponseField>
+    
+    <ResponseField name="name" type="string | null">
+      Custom provider name
+    </ResponseField>
+    
+    <ResponseField name="baseUrl" type="string | null">
+      Custom base URL
+    </ResponseField>
+    
+    <ResponseField name="options" type="object | null">
+      Provider-specific options
+    </ResponseField>
+    
+    <ResponseField name="status" type="'active' | 'inactive' | 'deleted'">
+      Current status
+    </ResponseField>
+    
+    <ResponseField name="organizationId" type="string">
+      Associated organization ID
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="date">
+      Creation timestamp
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="date">
+      Last update timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL - OpenAI
+curl -X POST https://api.llmgateway.io/keys/provider \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "openai",
+    "token": "sk-proj-...",
+    "organizationId": "org_abc123"
+  }'
+```
+
+```bash cURL - Azure OpenAI
+curl -X POST https://api.llmgateway.io/keys/provider \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "azure-openai",
+    "token": "your-azure-key",
+    "organizationId": "org_abc123",
+    "options": {
+      "azure_resource": "my-resource",
+      "azure_api_version": "2024-02-15-preview",
+      "azure_deployment_type": "openai",
+      "azure_validation_model": "gpt-4o"
+    }
+  }'
+```
+
+```bash cURL - Custom Provider
+curl -X POST https://api.llmgateway.io/keys/provider \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "custom",
+    "name": "mycompany",
+    "token": "custom-api-key",
+    "baseUrl": "https://api.mycompany.com/v1",
+    "organizationId": "org_abc123"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.llmgateway.io/keys/provider', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_SESSION_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    provider: 'openai',
+    token: 'sk-proj-...',
+    organizationId: 'org_abc123'
+  })
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.llmgateway.io/keys/provider',
+    headers={'Authorization': 'Bearer YOUR_SESSION_TOKEN'},
+    json={
+        'provider': 'openai',
+        'token': 'sk-proj-...',
+        'organizationId': 'org_abc123'
+    }
+)
+
+provider_key = response.json()['providerKey']
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "providerKey": {
+    "id": "pk_xyz789",
+    "maskedToken": "sk-proj-...xyz",
+    "provider": "openai",
+    "name": null,
+    "baseUrl": null,
+    "options": null,
+    "status": "active",
+    "organizationId": "org_abc123",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+</ResponseExample>
+
+<Note>
+Provider keys are validated before creation. The system will test the key by making a test API call to the provider.
+</Note>
+
+---
+
+## List Provider Keys
+
+Retrieve all provider keys for organizations you belong to.
+
+<ResponseField name="providerKeys" type="array">
+  Array of provider key objects with masked tokens
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/keys/provider \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "providerKeys": [
+    {
+      "id": "pk_xyz789",
+      "maskedToken": "sk-proj-...xyz",
+      "provider": "openai",
+      "name": null,
+      "baseUrl": null,
+      "options": null,
+      "status": "active",
+      "organizationId": "org_abc123",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "updatedAt": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": "pk_abc456",
+      "maskedToken": "sk-ant-...def",
+      "provider": "anthropic",
+      "name": null,
+      "baseUrl": null,
+      "options": null,
+      "status": "active",
+      "organizationId": "org_abc123",
+      "createdAt": "2024-01-14T09:15:00Z",
+      "updatedAt": "2024-01-14T09:15:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Update Provider Key Status
+
+Activate or deactivate a provider key.
+
+<ParamField path="id" type="string" required>
+  Provider key ID
+</ParamField>
+
+<ParamField body="status" type="'active' | 'inactive'" required>
+  New status for the provider key
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X PATCH https://api.llmgateway.io/keys/provider/pk_xyz789 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "inactive"}'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "message": "Provider key status updated to inactive",
+  "providerKey": {
+    "id": "pk_xyz789",
+    "maskedToken": "sk-proj-...xyz",
+    "provider": "openai",
+    "name": null,
+    "baseUrl": null,
+    "options": null,
+    "status": "inactive",
+    "organizationId": "org_abc123",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-16T14:20:00Z"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Delete Provider Key
+
+Soft-delete a provider key. The key will be marked as deleted and can no longer be used.
+
+<ParamField path="id" type="string" required>
+  Provider key ID
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.llmgateway.io/keys/provider/pk_xyz789 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "message": "Provider key deleted successfully"
+}
+```
+</ResponseExample>
+
+---
+
+## Supported Providers
+
+The following providers are officially supported:
+
+| Provider | ID | Validation |
+|----------|----|-----------|
+| OpenAI | `openai` | Automatic |
+| Anthropic | `anthropic` | Automatic |
+| Google Vertex AI | `google-vertex-ai` | Automatic |
+| Azure OpenAI | `azure-openai` | Automatic |
+| AWS Bedrock | `aws-bedrock` | Automatic |
+| Cohere | `cohere` | Automatic |
+| Mistral | `mistral` | Automatic |
+| Groq | `groq` | Automatic |
+| Together AI | `together-ai` | Automatic |
+| Custom | `custom` | Manual |
+
+For a complete list of supported providers, see the [Providers documentation](/features/multi-provider).
+
+---
+
+## Custom Providers
+
+You can add custom OpenAI-compatible providers:
+
+<Steps>
+  <Step title="Set provider to 'custom'">
+    Use `"provider": "custom"` in your request
+  </Step>
+  
+  <Step title="Provide a unique name">
+    Choose a unique name (lowercase a-z only) for your provider
+  </Step>
+  
+  <Step title="Specify the base URL">
+    Provide the base URL for the OpenAI-compatible API
+  </Step>
+  
+  <Step title="Add your API key">
+    Include the API key from your custom provider
+  </Step>
+</Steps>
+
+<RequestExample>
+```bash Custom Provider Example
+curl -X POST https://api.llmgateway.io/keys/provider \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "custom",
+    "name": "mycompany",
+    "token": "custom-api-key",
+    "baseUrl": "https://api.mycompany.com/v1",
+    "organizationId": "org_abc123"
+  }'
+```
+</RequestExample>
+
+<Note>
+Custom providers are not automatically validated. Make sure your endpoint is OpenAI-compatible.
+</Note>
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 400 Bad Request - Duplicate Key
+{
+  "message": "A key for provider 'openai' already exists for this project"
+}
+```
+
+```json 400 Bad Request - Invalid Key
+{
+  "message": "Error from provider: Invalid API key (status 401) using model gpt-4o-mini. Please try again later or contact support."
+}
+```
+
+```json 403 Forbidden
+{
+  "message": "You don't have access to this organization or it has no projects"
+}
+```
+
+```json 404 Not Found
+{
+  "message": "Provider key not found"
+}
+```
+</ResponseExample>
+
+---
+
+## Best Practices
+
+<Check>
+**Security**
+- Rotate provider keys regularly
+- Use different keys for development and production
+- Monitor key usage via activity logs
+- Revoke keys immediately if compromised
+</Check>
+
+<Check>
+**Cost Management**
+- Set usage limits on API keys that use these provider keys
+- Monitor spending through your provider's dashboard
+- Enable auto-top-up to avoid service interruptions
+</Check>
+
+<Check>
+**High Availability**
+- Configure multiple providers for redundancy
+- Use fallback routing in your Gateway API requests
+- Monitor provider status pages for outages
+</Check>

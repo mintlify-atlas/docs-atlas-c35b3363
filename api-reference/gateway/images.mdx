@@ -1,0 +1,393 @@
+---
+title: POST /v1/images/generations
+description: Generate images from text descriptions using AI models
+---
+
+Creates images from text prompts using image generation models. Internally routes to chat completion models with image generation capabilities.
+
+## Endpoint
+
+```
+POST https://api.llmgateway.io/v1/images/generations
+```
+
+## Authentication
+
+Requires authentication using Bearer token or x-api-key header. See [Authentication](/api-reference/gateway/authentication).
+
+## Request Body
+
+<ParamField path="prompt" type="string" required>
+  A text description of the desired image(s).
+  
+  Example: `"A white siamese cat"`
+</ParamField>
+
+<ParamField path="model" type="string" default="auto">
+  The model to use for image generation.
+  
+  Options:
+  - `"auto"` - Automatically selects `gemini-3-pro-image-preview`
+  - `"gemini-2.5-flash-image"`
+  - `"gemini-3-pro-image-preview"`
+  - Other image generation models
+  
+  Example: `"gemini-2.5-flash-image"`
+</ParamField>
+
+<ParamField path="n" type="number" default={1}>
+  The number of images to generate. Must be between 1 and 10.
+  
+  Example: `1`
+</ParamField>
+
+<ParamField path="size" type="string">
+  The size of the generated images. Supported sizes depend on the model.
+  
+  Common sizes:
+  - `"1024x1024"` (square)
+  - `"1792x1024"` (landscape)
+  - `"1024x1792"` (portrait)
+  - `"1536x1024"`
+  - `"1024x1536"`
+  
+  Example: `"1024x1024"`
+</ParamField>
+
+<ParamField path="aspect_ratio" type="string">
+  The aspect ratio of the generated images. Takes precedence over `size` if both are provided.
+  
+  Common ratios:
+  - `"1:1"` (square)
+  - `"16:9"` (landscape)
+  - `"9:16"` (portrait)
+  - `"4:3"`
+  - `"3:2"`
+  - `"7:4"`
+  
+  Example: `"16:9"`
+</ParamField>
+
+<ParamField path="quality" type="string">
+  The quality of the generated image.
+  
+  Options: `"standard"`, `"hd"`, `"low"`, `"medium"`, `"high"`
+  
+  Example: `"standard"`
+</ParamField>
+
+<ParamField path="style" type="string">
+  The style of the generated images.
+  
+  Options:
+  - `"vivid"` - Hyper-real, dramatic lighting and colors
+  - `"natural"` - Realistic, organic look
+  
+  Example: `"vivid"`
+</ParamField>
+
+<ParamField path="response_format" type="string" default="b64_json">
+  The format in which the generated images are returned. Only `b64_json` is supported.
+  
+  Example: `"b64_json"`
+</ParamField>
+
+## Response
+
+<ResponseField name="created" type="number">
+  Unix timestamp of when the images were created.
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of generated images.
+  
+  Each image contains:
+  - `b64_json` (string): Base64-encoded image data
+  - `revised_prompt` (string, optional): The actual prompt used (may differ from input)
+</ResponseField>
+
+## Examples
+
+### Generate Single Image
+
+<CodeGroup>
+
+```bash cURL
+curl https://api.llmgateway.io/v1/images/generations \
+  -H "Authorization: Bearer $LLMGATEWAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A serene mountain landscape at sunset",
+    "model": "gemini-2.5-flash-image",
+    "size": "1024x1024",
+    "quality": "standard"
+  }'
+```
+
+```python Python
+import os
+import base64
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ.get("LLMGATEWAY_API_KEY"),
+    base_url="https://api.llmgateway.io/v1"
+)
+
+response = client.images.generate(
+    prompt="A serene mountain landscape at sunset",
+    model="gemini-2.5-flash-image",
+    size="1024x1024",
+    quality="standard",
+    n=1
+)
+
+# Decode and save the image
+image_data = base64.b64decode(response.data[0].b64_json)
+with open("image.png", "wb") as f:
+    f.write(image_data)
+```
+
+```javascript JavaScript
+import OpenAI from 'openai';
+import fs from 'fs';
+
+const client = new OpenAI({
+  apiKey: process.env.LLMGATEWAY_API_KEY,
+  baseURL: 'https://api.llmgateway.io/v1'
+});
+
+const response = await client.images.generate({
+  prompt: 'A serene mountain landscape at sunset',
+  model: 'gemini-2.5-flash-image',
+  size: '1024x1024',
+  quality: 'standard',
+  n: 1
+});
+
+// Decode and save the image
+const imageBuffer = Buffer.from(response.data[0].b64_json, 'base64');
+fs.writeFileSync('image.png', imageBuffer);
+```
+
+</CodeGroup>
+
+### Generate Multiple Images
+
+```python
+response = client.images.generate(
+    prompt="A futuristic city skyline",
+    model="gemini-2.5-flash-image",
+    n=3,
+    size="1024x1024"
+)
+
+# Save all images
+for i, image in enumerate(response.data):
+    image_data = base64.b64decode(image.b64_json)
+    with open(f"image_{i}.png", "wb") as f:
+        f.write(image_data)
+```
+
+### Custom Aspect Ratio
+
+```python
+response = client.images.generate(
+    prompt="A wide panoramic view of the ocean",
+    model="gemini-2.5-flash-image",
+    aspect_ratio="16:9",  # Wide format
+    style="natural"
+)
+```
+
+### High Quality with Vivid Style
+
+```python
+response = client.images.generate(
+    prompt="A detailed dragon in a fantasy setting",
+    model="gemini-2.5-flash-image",
+    quality="hd",
+    style="vivid",
+    size="1792x1024"
+)
+```
+
+## Response Example
+
+```json
+{
+  "created": 1677858242,
+  "data": [
+    {
+      "b64_json": "iVBORw0KGgoAAAANSUhEUgAA...",
+      "revised_prompt": "A serene mountain landscape at sunset with dramatic orange and pink skies"
+    }
+  ]
+}
+```
+
+## Image Edits Endpoint
+
+The gateway also supports editing existing images:
+
+```
+POST https://api.llmgateway.io/v1/images/edits
+```
+
+### Request Body (JSON)
+
+<ParamField path="images" type="array" required>
+  Array of input image references to edit. Each image must have:
+  - `image_url` (string): HTTPS URL or base64 data URL
+  
+  Example:
+  ```json
+  [
+    {"image_url": "https://example.com/image.png"},
+    {"image_url": "data:image/png;base64,..."}
+  ]
+  ```
+</ParamField>
+
+<ParamField path="prompt" type="string" required>
+  A text description of the desired image edit.
+  
+  Example: `"Add a watercolor effect to this image"`
+</ParamField>
+
+<ParamField path="model" type="string">
+  The model to use for image editing.
+  
+  Example: `"gemini-3-pro-image-preview"`
+</ParamField>
+
+<ParamField path="n" type="number">
+  The number of edited images to generate (1-10).
+  
+  Example: `1`
+</ParamField>
+
+<ParamField path="background" type="string">
+  Background behavior for generated image output.
+  
+  Options: `"transparent"`, `"opaque"`, `"auto"`
+  
+  Example: `"transparent"`
+</ParamField>
+
+<ParamField path="input_fidelity" type="string">
+  Controls fidelity to the original input image(s).
+  
+  Options: `"high"`, `"low"`
+  
+  Example: `"high"`
+</ParamField>
+
+<ParamField path="quality" type="string">
+  Output quality for image models.
+  
+  Options: `"low"`, `"medium"`, `"high"`, `"auto"`
+  
+  Example: `"high"`
+</ParamField>
+
+<ParamField path="size" type="string">
+  Requested output image size.
+  
+  Options: `"auto"`, `"1024x1024"`, `"1536x1024"`, `"1024x1536"`
+  
+  Example: `"1024x1024"`
+</ParamField>
+
+<ParamField path="output_format" type="string">
+  Output image format.
+  
+  Options: `"png"`, `"jpeg"`, `"webp"`
+  
+  Example: `"png"`
+</ParamField>
+
+<ParamField path="output_compression" type="number">
+  Compression level for JPEG or WebP output (0-100).
+  
+  Example: `100`
+</ParamField>
+
+### Multipart Form Data
+
+The edits endpoint also accepts `multipart/form-data` for OpenAI compatibility:
+
+```bash
+curl https://api.llmgateway.io/v1/images/edits \
+  -H "Authorization: Bearer $LLMGATEWAY_API_KEY" \
+  -F image=@source.png \
+  -F prompt="Add a sunset background" \
+  -F model="gemini-3-pro-image-preview" \
+  -F size="1024x1024"
+```
+
+Supported field names for the image file:
+- `image`
+- `image[]` (used by some clients)
+- `file`
+
+Optional mask field:
+- `mask` - Mask image to specify areas to edit
+
+### Edit Image Example
+
+```python
+response = client.images.edit(
+    image=open("source.png", "rb"),
+    prompt="Add a watercolor painting effect",
+    model="gemini-3-pro-image-preview",
+    size="1024x1024",
+    input_fidelity="high",
+    quality="high"
+)
+
+# Save edited image
+image_data = base64.b64decode(response.data[0].b64_json)
+with open("edited.png", "wb") as f:
+    f.write(image_data)
+```
+
+## Error Responses
+
+### Invalid Request
+
+```json
+{
+  "error": true,
+  "status": 400,
+  "message": "Invalid request parameters: prompt: Required"
+}
+```
+
+### No Images Generated
+
+```json
+{
+  "error": true,
+  "status": 500,
+  "message": "The model did not generate any images. Try a different model with image generation capabilities."
+}
+```
+
+### Invalid Image URL
+
+```json
+{
+  "error": true,
+  "status": 400,
+  "message": "images[0].image_url must be an https URL or a base64 data URL"
+}
+```
+
+## Notes
+
+- Images are returned as base64-encoded data in the response
+- The gateway internally uses chat completion models with image generation capabilities
+- Different models support different aspect ratios and sizes
+- For best results, provide detailed and specific prompts
+- The `revised_prompt` in the response shows how the model interpreted your prompt

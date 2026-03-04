@@ -1,0 +1,759 @@
+---
+title: "Migration Guide"
+description: "Migrate from direct provider APIs to LLM Gateway"
+icon: "right-left"
+---
+
+## Why Migrate to LLM Gateway?
+
+Migrating from direct provider APIs to LLM Gateway provides:
+
+<CardGroup cols={2}>
+  <Card title="Unified Interface" icon="layer-group">
+    One API for 15+ providers instead of managing multiple SDKs.
+  </Card>
+  
+  <Card title="Automatic Failover" icon="shield-halved">
+    Built-in redundancy across providers ensures high availability.
+  </Card>
+  
+  <Card title="Cost Optimization" icon="dollar-sign">
+    Intelligent routing selects the best provider based on cost and performance.
+  </Card>
+  
+  <Card title="Usage Analytics" icon="chart-line">
+    Centralized logging and analytics across all providers.
+  </Card>
+  
+  <Card title="Response Caching" icon="bolt">
+    Built-in caching reduces costs and improves response times.
+  </Card>
+  
+  <Card title="Easy Switching" icon="shuffle">
+    Switch between providers instantly without code changes.
+  </Card>
+</CardGroup>
+
+## Migration Overview
+
+Migration typically involves:
+
+1. **Sign up** for LLM Gateway
+2. **Get an API key** from your project
+3. **Update endpoints** in your code
+4. **Optional**: Add your provider API keys for direct billing
+5. **Test** thoroughly before going to production
+
+<Tip>
+  Migration is usually a 5-10 minute process with minimal code changes.
+</Tip>
+
+## OpenAI SDK Migration
+
+### Before (Direct OpenAI)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-...your-openai-key..."
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "user", "content": "Hello!"}
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+### After (LLM Gateway)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="llmg_...your-gateway-key...",
+    base_url="https://api.llmgateway.io/v1"
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",  # Or any other model
+    messages=[
+        {"role": "user", "content": "Hello!"}
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+**Changes:**
+1. Replace `api_key` with your LLM Gateway API key
+2. Add `base_url="https://api.llmgateway.io/v1"`
+3. Optionally change `model` to use other providers
+
+### Using Your OpenAI API Key
+
+To use your own OpenAI API key (no gateway markup):
+
+<Steps>
+  <Step title="Add Provider Key">
+    Go to **Organization Settings** → **Provider Keys** and add your OpenAI API key.
+  </Step>
+  
+  <Step title="Set Project Mode">
+    Configure your project to use `hybrid` or `api-keys` mode.
+  </Step>
+  
+  <Step title="Make Requests">
+    Requests will automatically use your key when available.
+  </Step>
+</Steps>
+
+## Anthropic SDK Migration
+
+### Before (Direct Anthropic)
+
+```python
+import anthropic
+
+client = anthropic.Anthropic(
+    api_key="sk-ant-...your-anthropic-key..."
+)
+
+message = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    messages=[
+        {"role": "user", "content": "Hello, Claude!"}
+    ]
+)
+
+print(message.content[0].text)
+```
+
+### After (LLM Gateway - OpenAI SDK)
+
+LLM Gateway uses the OpenAI-compatible format:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="llmg_...your-gateway-key...",
+    base_url="https://api.llmgateway.io/v1"
+)
+
+response = client.chat.completions.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    messages=[
+        {"role": "user", "content": "Hello, Claude!"}
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+**Changes:**
+1. Switch from Anthropic SDK to OpenAI SDK
+2. Use LLM Gateway credentials and base URL
+3. Response format changes from Anthropic to OpenAI structure
+
+### Using Your Anthropic API Key
+
+<Steps>
+  <Step title="Add Provider Key">
+    Add your Anthropic API key in **Organization Settings** → **Provider Keys**.
+  </Step>
+  
+  <Step title="Configure Mode">
+    Set project mode to `hybrid` or `api-keys`.
+  </Step>
+  
+  <Step title="Make Requests">
+    Claude requests will use your key automatically.
+  </Step>
+</Steps>
+
+## Google Gemini Migration
+
+### Before (Direct Google)
+
+```python
+import google.generativeai as genai
+
+genai.configure(api_key="AIza...your-google-key...")
+model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+response = model.generate_content("Write a story about a magic backpack.")
+print(response.text)
+```
+
+### After (LLM Gateway)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="llmg_...your-gateway-key...",
+    base_url="https://api.llmgateway.io/v1"
+)
+
+response = client.chat.completions.create(
+    model="gemini-2.0-flash-exp",
+    messages=[
+        {"role": "user", "content": "Write a story about a magic backpack."}
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+**Changes:**
+1. Switch from Google SDK to OpenAI SDK
+2. Use chat format instead of `generate_content`
+3. Access response via `.choices[0].message.content`
+
+## JavaScript/TypeScript Migration
+
+### OpenAI (Node.js)
+
+**Before:**
+
+```typescript
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const completion = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{role: "user", content: "Hello!"}],
+});
+
+console.log(completion.choices[0].message.content);
+```
+
+**After:**
+
+```typescript
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.LLM_GATEWAY_API_KEY,
+  baseURL: "https://api.llmgateway.io/v1",
+});
+
+const completion = await openai.chat.completions.create({
+  model: "gpt-4o",  // Or any other model
+  messages: [{role: "user", content: "Hello!"}],
+});
+
+console.log(completion.choices[0].message.content);
+```
+
+### Anthropic (Node.js)
+
+**Before:**
+
+```typescript
+import Anthropic from "@anthropic-ai/sdk";
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+const message = await anthropic.messages.create({
+  model: "claude-3-5-sonnet-20241022",
+  max_tokens: 1024,
+  messages: [{role: "user", content: "Hello!"}],
+});
+
+console.log(message.content[0].text);
+```
+
+**After:**
+
+```typescript
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.LLM_GATEWAY_API_KEY,
+  baseURL: "https://api.llmgateway.io/v1",
+});
+
+const completion = await openai.chat.completions.create({
+  model: "claude-3-5-sonnet-20241022",
+  max_tokens: 1024,
+  messages: [{role: "user", content: "Hello!"}],
+});
+
+console.log(completion.choices[0].message.content);
+```
+
+## Streaming Responses
+
+Streaming works the same way with LLM Gateway:
+
+### Python
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="llmg_...your-gateway-key...",
+    base_url="https://api.llmgateway.io/v1"
+)
+
+stream = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Tell me a story"}],
+    stream=True
+)
+
+for chunk in stream:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+```
+
+### JavaScript
+
+```typescript
+const stream = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{role: "user", content: "Tell me a story"}],
+  stream: true,
+});
+
+for await (const chunk of stream) {
+  const content = chunk.choices[0]?.delta?.content;
+  if (content) {
+    process.stdout.write(content);
+  }
+}
+```
+
+## Vision and Multimodal
+
+Send images alongside text:
+
+```python
+from openai import OpenAI
+import base64
+
+client = OpenAI(
+    api_key="llmg_...your-gateway-key...",
+    base_url="https://api.llmgateway.io/v1"
+)
+
+# Read and encode image
+with open("image.jpg", "rb") as f:
+    image_data = base64.b64encode(f.read()).decode()
+
+response = client.chat.completions.create(
+    model="gpt-4o",  # Vision-capable model
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "What's in this image?"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{image_data}"
+                    }
+                }
+            ]
+        }
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+## Function Calling / Tools
+
+Tools work identically to OpenAI:
+
+```python
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get current weather for a location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "City name"
+                    }
+                },
+                "required": ["location"]
+            }
+        }
+    }
+]
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What's the weather in Paris?"}],
+    tools=tools,
+    tool_choice="auto"
+)
+
+# Handle tool calls
+if response.choices[0].message.tool_calls:
+    for tool_call in response.choices[0].message.tool_calls:
+        if tool_call.function.name == "get_weather":
+            # Execute your function
+            result = get_weather(tool_call.function.arguments)
+            # Continue conversation with result
+```
+
+## Environment Variables
+
+Update your environment variables:
+
+**Before:**
+
+```bash
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=AIza...
+```
+
+**After:**
+
+```bash
+LLM_GATEWAY_API_KEY=llmg_...
+# Optional: Keep provider keys for direct billing
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+<Tip>
+  Use a `.env` file and load it with `python-dotenv` (Python) or `dotenv` (Node.js).
+</Tip>
+
+## Framework Integration
+
+### LangChain (Python)
+
+```python
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    model="gpt-4o",
+    api_key="llmg_...your-gateway-key...",
+    base_url="https://api.llmgateway.io/v1"
+)
+
+response = llm.invoke("What is LangChain?")
+print(response.content)
+```
+
+### LangChain (TypeScript)
+
+```typescript
+import { ChatOpenAI } from "@langchain/openai";
+
+const llm = new ChatOpenAI({
+  modelName: "gpt-4o",
+  openAIApiKey: process.env.LLM_GATEWAY_API_KEY,
+  configuration: {
+    baseURL: "https://api.llmgateway.io/v1",
+  },
+});
+
+const response = await llm.invoke("What is LangChain?");
+console.log(response.content);
+```
+
+### LlamaIndex
+
+```python
+from llama_index.llms.openai import OpenAI as LlamaOpenAI
+
+llm = LlamaOpenAI(
+    model="gpt-4o",
+    api_key="llmg_...your-gateway-key...",
+    api_base="https://api.llmgateway.io/v1"
+)
+
+response = llm.complete("What is LlamaIndex?")
+print(response.text)
+```
+
+### Vercel AI SDK
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
+
+const result = streamText({
+  model: openai("gpt-4o", {
+    apiKey: process.env.LLM_GATEWAY_API_KEY,
+    baseURL: "https://api.llmgateway.io/v1",
+  }),
+  prompt: "Write a poem about programming",
+});
+
+for await (const chunk of result.textStream) {
+  process.stdout.write(chunk);
+}
+```
+
+## Testing Your Migration
+
+<Steps>
+  <Step title="Set Up Test Environment">
+    Create a test project in LLM Gateway and generate an API key.
+  </Step>
+  
+  <Step title="Update Configuration">
+    Change `base_url` and `api_key` in your test environment.
+  </Step>
+  
+  <Step title="Run Test Suite">
+    Execute your existing tests to verify compatibility.
+  </Step>
+  
+  <Step title="Compare Responses">
+    Check that responses match expected format and quality.
+  </Step>
+  
+  <Step title="Monitor Performance">
+    Measure latency and throughput to ensure acceptable performance.
+  </Step>
+  
+  <Step title="Test Error Handling">
+    Verify your error handling works with gateway error formats.
+  </Step>
+</Steps>
+
+## Common Migration Issues
+
+<AccordionGroup>
+  <Accordion title="Response Format Differences" icon="code">
+    **Issue**: Anthropic SDK returns different structure than OpenAI
+    
+    **Solution**: 
+    - Anthropic: `message.content[0].text`
+    - OpenAI/Gateway: `completion.choices[0].message.content`
+    
+    Update your response parsing code accordingly.
+  </Accordion>
+  
+  <Accordion title="Model Name Differences" icon="tag">
+    **Issue**: Model names vary between providers
+    
+    **Solution**: Use LLM Gateway's unified model IDs:
+    - `"gpt-4o"` for OpenAI GPT-4o
+    - `"claude-3-5-sonnet-20241022"` for Claude 3.5
+    - `"gemini-2.0-flash-exp"` for Gemini 2.0
+    
+    See [list-models API](/api-reference/gateway/models) for all IDs.
+  </Accordion>
+  
+  <Accordion title="Authentication Errors" icon="lock">
+    **Issue**: `401 Unauthorized` errors
+    
+    **Solution**:
+    - Verify API key starts with `llmg_`
+    - Check key is active in dashboard
+    - Ensure key has not exceeded usage limit
+    - Confirm base URL is correct
+  </Accordion>
+  
+  <Accordion title="Timeout Issues" icon="clock">
+    **Issue**: Requests timing out
+    
+    **Solution**:
+    - Increase client timeout (default: 600s)
+    - Use streaming for long responses
+    - Check provider status page
+    - Try a different model/provider
+  </Accordion>
+  
+  <Accordion title="Rate Limiting" icon="gauge">
+    **Issue**: `429 Too Many Requests` errors
+    
+    **Solution**:
+    - Implement exponential backoff
+    - Respect `Retry-After` header
+    - Contact support to increase limits
+    - Distribute load across multiple keys
+  </Accordion>
+</AccordionGroup>
+
+## Rollback Plan
+
+If you need to revert to direct provider APIs:
+
+<Steps>
+  <Step title="Keep Old Configuration">
+    Maintain separate config for direct provider access during migration.
+  </Step>
+  
+  <Step title="Use Feature Flags">
+    Toggle between gateway and direct APIs with a feature flag.
+  </Step>
+  
+  <Step title="Monitor Metrics">
+    Track error rates, latency, and costs in both configurations.
+  </Step>
+  
+  <Step title="Gradual Rollout">
+    Route a percentage of traffic through gateway, increase gradually.
+  </Step>
+</Steps>
+
+**Example with feature flag:**
+
+```python
+import os
+from openai import OpenAI
+
+USE_GATEWAY = os.getenv("USE_LLM_GATEWAY", "false") == "true"
+
+if USE_GATEWAY:
+    client = OpenAI(
+        api_key=os.getenv("LLM_GATEWAY_API_KEY"),
+        base_url="https://api.llmgateway.io/v1"
+    )
+else:
+    client = OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY")
+    )
+
+# Rest of your code remains the same
+```
+
+## Cost Comparison
+
+### Pricing Models
+
+<Tabs>
+  <Tab title="Gateway Credits">
+    Pay-as-you-go with gateway markup:
+    
+    - Simple per-token pricing
+    - No provider account needed
+    - Instant access to all models
+    - ~10-20% markup over provider pricing
+  </Tab>
+  
+  <Tab title="Your Provider Keys">
+    Direct provider billing with no markup:
+    
+    - Use your existing provider accounts
+    - Provider's pricing (no gateway fee)
+    - Requires Pro plan ($29/mo)
+    - Configure keys in organization settings
+  </Tab>
+  
+  <Tab title="Hybrid Mode">
+    Best of both worlds:
+    
+    - Use your keys when configured
+    - Fall back to credits when needed
+    - Uninterrupted service
+    - Recommended for production
+  </Tab>
+</Tabs>
+
+### Sample Cost Analysis
+
+**Scenario**: 10M input tokens + 1M output tokens with GPT-4o
+
+| Method | Cost | Notes |
+|--------|------|-------|
+| Direct OpenAI | $27.50 | $2.50/M input + $10/M output |
+| Gateway Credits | $30.25 | ~10% markup |
+| Your Keys (Pro) | $56.50 | $27.50 + $29/mo Pro plan |
+
+**Breakeven point**: ~100M tokens/month for Pro plan
+
+<Tip>
+  For high-volume usage (>100M tokens/month), using your provider keys with Pro plan is most cost-effective.
+</Tip>
+
+## Post-Migration Checklist
+
+<Steps>
+  <Step title="Verify Functionality">
+    - [ ] All features work as expected
+    - [ ] Streaming responses function correctly
+    - [ ] Error handling behaves properly
+    - [ ] Vision/tools work if applicable
+  </Step>
+  
+  <Step title="Monitor Performance">
+    - Response times are acceptable
+    - Error rates are low (less than 1%)
+    - No new timeout issues
+    - Cache hit rate is improving
+  </Step>
+  
+  <Step title="Optimize Configuration">
+    - [ ] Enable caching for repeated queries
+    - [ ] Set appropriate usage limits
+    - [ ] Configure provider keys if beneficial
+    - [ ] Set up billing alerts
+  </Step>
+  
+  <Step title="Update Documentation">
+    - [ ] Update deployment guides
+    - [ ] Document new environment variables
+    - [ ] Update team onboarding docs
+    - [ ] Share API key management procedures
+  </Step>
+</Steps>
+
+## Getting Help
+
+If you encounter issues during migration:
+
+<CardGroup cols={2}>
+  <Card title="Documentation" icon="book">
+    Review our [API Reference](/api-reference/gateway/overview) for detailed specs.
+  </Card>
+  
+  <Card title="Support" icon="life-ring">
+    Email [support@llmgateway.io](mailto:support@llmgateway.io) for assistance.
+  </Card>
+  
+  <Card title="Status Page" icon="signal">
+    Check [status.llmgateway.io](https://status.llmgateway.io) for service health.
+  </Card>
+  
+  <Card title="Community" icon="users">
+    Join our [Discord community](https://discord.gg/llmgateway) for peer support.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Projects" icon="folder" href="/guides/projects">
+    Learn about project management and API keys.
+  </Card>
+  
+  <Card title="Provider Keys" icon="key" href="/api-reference/management/provider-keys">
+    Configure your provider API keys for direct billing.
+  </Card>
+  
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Complete quickstart guide for new users.
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api-reference/gateway/overview">
+    Explore the complete API documentation.
+  </Card>
+</CardGroup>

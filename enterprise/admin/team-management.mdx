@@ -1,0 +1,474 @@
+---
+title: Team Management
+description: Manage teams, members, and roles in LLM Gateway Enterprise
+---
+
+## Overview
+
+LLM Gateway Enterprise includes comprehensive team and organization management with role-based access control.
+
+## Organization Structure
+
+### Hierarchy
+
+```
+Organization
+├── Members (users with roles)
+├── Projects
+│   ├── API Keys
+│   └── Provider Keys
+└── Billing Settings
+```
+
+### Organization Types
+
+#### Personal Organizations
+
+- Automatically created for each user
+- Single owner (the user)
+- Can invite team members
+- Billed to owner's account
+
+#### Team Organizations
+
+- Created explicitly by users
+- Multiple members with different roles
+- Shared billing
+- Collaborative workspace
+
+## User Roles
+
+### Role Hierarchy
+
+<Accordion title="Owner">
+**Full administrative access**
+
+Permissions:
+- All admin permissions
+- Manage billing and subscriptions
+- Delete organization
+- Transfer ownership
+- Remove any member (including admins)
+
+Limitations:
+- Only one owner per organization
+- Cannot remove themselves (must transfer ownership first)
+</Accordion>
+
+<Accordion title="Admin">
+**Project and member management**
+
+Permissions:
+- Create/edit/delete projects
+- Manage API keys
+- Invite and remove members
+- Assign roles (except owner)
+- View all analytics
+- Configure settings
+
+Limitations:
+- Cannot manage billing
+- Cannot delete organization
+- Cannot remove owner
+</Accordion>
+
+<Accordion title="Member">
+**Standard access for developers**
+
+Permissions:
+- Use API keys
+- View project analytics
+- Create personal API keys
+- View team members
+- Access playground
+
+Limitations:
+- Cannot invite members
+- Cannot manage billing
+- Cannot delete projects
+</Accordion>
+
+<Accordion title="Viewer">
+**Read-only access**
+
+Permissions:
+- View analytics
+- View API key list (not the keys themselves)
+- View team members
+- Access documentation
+
+Limitations:
+- Cannot create API keys
+- Cannot make API requests
+- Cannot modify anything
+</Accordion>
+
+## Member Management
+
+### Adding Members
+
+#### Email Invitation
+
+```typescript
+import { inviteMember } from '@/lib/organizations';
+
+const invitation = await inviteMember({
+  organizationId: 'org_123',
+  email: 'developer@example.com',
+  role: 'member'
+});
+```
+
+#### Invitation Flow
+
+1. Owner/admin enters email and selects role
+2. System sends invitation email
+3. Recipient clicks invitation link
+4. If they have an account: added immediately
+5. If new user: prompted to create account first
+6. User is added to organization with specified role
+
+### Removing Members
+
+Owners and admins can remove members:
+
+```typescript
+import { removeMember } from '@/lib/organizations';
+
+await removeMember({
+  organizationId: 'org_123',
+  userId: 'user_456'
+});
+```
+
+<Warning>
+Removing a member:
+- Revokes all access immediately
+- Does not delete their personal API keys
+- Does not affect their personal organization
+- Cannot be undone (must re-invite)
+</Warning>
+
+### Changing Roles
+
+Admins can update member roles:
+
+```typescript
+import { updateMemberRole } from '@/lib/organizations';
+
+await updateMemberRole({
+  organizationId: 'org_123',
+  userId: 'user_456',
+  newRole: 'admin'
+});
+```
+
+Role changes take effect immediately.
+
+## Membership Database Schema
+
+### Member Table
+
+```sql
+CREATE TABLE member (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  organization_id TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+  role TEXT NOT NULL, -- owner, admin, member, viewer
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, organization_id)
+);
+```
+
+### Invitation Table
+
+```sql
+CREATE TABLE invitation (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_by TEXT NOT NULL REFERENCES "user"(id),
+  status TEXT NOT NULL -- pending, accepted, expired, cancelled
+);
+```
+
+## Permission System
+
+### Checking Permissions
+
+```typescript
+import { checkPermission } from '@/lib/permissions';
+
+const canManageBilling = await checkPermission({
+  userId: 'user_123',
+  organizationId: 'org_456',
+  action: 'billing:manage'
+});
+```
+
+### Permission Matrix
+
+| Action | Owner | Admin | Member | Viewer |
+|--------|-------|-------|--------|--------|
+| View analytics | ✓ | ✓ | ✓ | ✓ |
+| Create API keys | ✓ | ✓ | ✓ | ✗ |
+| Delete API keys | ✓ | ✓ | Own only | ✗ |
+| Create projects | ✓ | ✓ | ✗ | ✗ |
+| Delete projects | ✓ | ✓ | ✗ | ✗ |
+| Invite members | ✓ | ✓ | ✗ | ✗ |
+| Remove members | ✓ | ✓ | ✗ | ✗ |
+| Change roles | ✓ | Non-owner only | ✗ | ✗ |
+| Manage billing | ✓ | ✗ | ✗ | ✗ |
+| Delete org | ✓ | ✗ | ✗ | ✗ |
+
+## Team Dashboard
+
+### Member List
+
+View all team members with:
+
+- Name and email
+- Role badge
+- Join date
+- Last active
+- Actions (change role, remove)
+
+### Activity Feed
+
+Recent team activities:
+
+- Member joined
+- Member removed
+- Role changed
+- Project created
+- API key generated
+- Settings updated
+
+### Usage by Member
+
+Track individual usage:
+
+- Requests made
+- Tokens consumed
+- Cost incurred
+- API keys created
+
+<Note>
+Usage tracking is per API key, not per user. If multiple users share an API key, usage is combined.
+</Note>
+
+## Collaboration Features
+
+### Shared Projects
+
+All members can access organization projects:
+
+```typescript
+// List accessible projects
+const projects = await getProjects({
+  organizationId: 'org_123'
+});
+```
+
+### Shared Analytics
+
+Team members can view:
+
+- Organization-wide metrics
+- Per-project analytics
+- Cost breakdowns
+- Usage trends
+
+### Shared Playground
+
+Team members can:
+
+- Test prompts collaboratively
+- Share playground sessions
+- Save and reuse prompts
+- Compare model outputs
+
+## API Integration
+
+### Member Endpoints
+
+```typescript
+// List members
+GET /organizations/:orgId/members
+
+// Invite member
+POST /organizations/:orgId/members/invite
+Body: { email, role }
+
+// Update role
+PATCH /organizations/:orgId/members/:userId
+Body: { role }
+
+// Remove member
+DELETE /organizations/:orgId/members/:userId
+```
+
+### Invitation Endpoints
+
+```typescript
+// List pending invitations
+GET /organizations/:orgId/invitations
+
+// Cancel invitation
+DELETE /organizations/:orgId/invitations/:invitationId
+
+// Accept invitation
+POST /invitations/:token/accept
+```
+
+## Best Practices
+
+### Role Assignment
+
+1. **Start restrictive** - Assign viewer or member initially
+2. **Promote as needed** - Upgrade to admin when trust is established
+3. **Limit owners** - Keep only one owner when possible
+4. **Regular audits** - Review roles quarterly
+
+### Onboarding
+
+1. Send invitation with welcome message
+2. Provide documentation links
+3. Share relevant projects
+4. Set up 1-on-1 walkthrough
+5. Grant appropriate access level
+
+### Offboarding
+
+1. Remove from organization
+2. Revoke API keys if shared
+3. Update documentation access
+4. Archive their projects if needed
+5. Document handoff
+
+### Security
+
+- Use least privilege principle
+- Audit member list regularly
+- Monitor for unusual activity
+- Rotate shared credentials
+- Enable 2FA for owners/admins
+
+## Team Limits
+
+### Free Plan
+
+- 1 owner (automatic)
+- No additional members
+- Personal projects only
+
+### Pro Plan
+
+- 1 owner
+- Up to 10 members
+- Unlimited viewers
+- Shared projects
+
+### Enterprise Plan
+
+- Custom member limits
+- Advanced role customization
+- SSO integration
+- Audit logging
+- Dedicated support
+
+## Audit Trail
+
+### Member Actions
+
+All member management actions are logged:
+
+```typescript
+interface AuditLog {
+  action: 'member.invite' | 'member.remove' | 'member.role_change';
+  actorUserId: string;
+  targetUserId: string;
+  organizationId: string;
+  metadata: {
+    oldRole?: string;
+    newRole?: string;
+    email?: string;
+  };
+  timestamp: Date;
+}
+```
+
+### Viewing Audit Logs
+
+Owners and admins can view:
+
+```typescript
+const logs = await getAuditLogs({
+  organizationId: 'org_123',
+  resourceType: 'member',
+  limit: 50
+});
+```
+
+## SSO Integration (Enterprise)
+
+Enterprise plans support Single Sign-On:
+
+### Supported Providers
+
+- Google Workspace
+- Microsoft Azure AD
+- Okta
+- Auth0
+- SAML 2.0
+
+### Configuration
+
+```typescript
+await configureSSOProvider({
+  organizationId: 'org_123',
+  provider: 'google-workspace',
+  domain: 'yourcompany.com',
+  clientId: 'client_id',
+  clientSecret: 'client_secret'
+});
+```
+
+### Auto-Provisioning
+
+- Users from verified domain auto-join
+- Assigned default role (configurable)
+- No invitation needed
+- Deprovisioning on SSO removal
+
+## Troubleshooting
+
+### Invitation Not Received
+
+1. Check spam folder
+2. Verify email address spelling
+3. Resend invitation
+4. Check invitation status in dashboard
+
+### Can't Remove Member
+
+- Ensure you're an owner or admin
+- Can't remove yourself (transfer ownership first)
+- Can't remove the only owner
+
+### Permission Denied
+
+- Verify your role has required permissions
+- Check if organization is active
+- Contact organization owner
+- Review audit logs for role changes
+
+### Member Limit Reached
+
+- Upgrade to higher plan
+- Remove inactive members
+- Contact sales for custom limits

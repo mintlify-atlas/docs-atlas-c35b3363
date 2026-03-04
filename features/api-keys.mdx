@@ -1,0 +1,375 @@
+---
+title: API Key Management
+description: Create, manage, and secure API keys with usage limits and IAM rules
+---
+
+## Overview
+
+LLM Gateway uses **API keys** for authentication and authorization. Each API key can have usage limits, IAM rules, and belongs to a specific project.
+
+## Creating API Keys
+
+Create API keys via the dashboard or API:
+
+<Tabs>
+  <Tab title="Dashboard">
+    1. Navigate to your project
+    2. Click "API Keys" in the sidebar
+    3. Click "Create API Key"
+    4. Enter a description
+    5. (Optional) Set a usage limit
+    6. Click "Create"
+  </Tab>
+  
+  <Tab title="API">
+    ```bash
+    curl https://api.llmgateway.io/keys/api \
+      -X POST \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "description": "Production API Key",
+        "projectId": "proj_abc123",
+        "usageLimit": "1000000"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+The full API key is only shown once when created. Store it securely - you won't be able to retrieve it later.
+</Warning>
+
+## API Key Format
+
+API keys follow this format:
+
+- **Development**: `llmgdev_` + 40 random characters
+- **Production**: `llmgtwy_` + 40 random characters
+
+```typescript apps/api/src/routes/keys-api.ts
+const prefix = process.env.NODE_ENV === "development" ? "llmgdev_" : "llmgtwy_";
+const token = prefix + shortid(40);
+```
+
+## Using API Keys
+
+Include your API key in requests:
+
+<Tabs>
+  <Tab title="Bearer Token">
+    ```bash
+    curl https://api.llmgateway.io/v1/chat/completions \
+      -H "Authorization: Bearer llmgtwy_abc123..." \
+      -d '{...}'
+    ```
+  </Tab>
+  
+  <Tab title="x-api-key Header">
+    ```bash
+    curl https://api.llmgateway.io/v1/chat/completions \
+      -H "x-api-key: llmgtwy_abc123..." \
+      -d '{...}'
+    ```
+  </Tab>
+  
+  <Tab title="OpenAI SDK">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="llmgtwy_abc123..."
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Listing API Keys
+
+Retrieve all API keys for a project:
+
+```bash
+curl "https://api.llmgateway.io/keys/api?projectId=proj_abc123" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+Response:
+
+```json
+{
+  "apiKeys": [
+    {
+      "id": "key_xyz789",
+      "description": "Production API Key",
+      "maskedToken": "llmgtwy_abc...xyz",
+      "status": "active",
+      "usage": "45000",
+      "usageLimit": "1000000",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "createdBy": "user_123",
+      "creator": {
+        "id": "user_123",
+        "name": "John Doe",
+        "email": "john@example.com"
+      }
+    }
+  ],
+  "planLimits": {
+    "currentCount": 3,
+    "maxKeys": 20,
+    "plan": "pro"
+  },
+  "userRole": "admin"
+}
+```
+
+## Usage Limits
+
+Set spending limits per API key:
+
+```bash
+curl https://api.llmgateway.io/keys/api/limit/key_xyz789 \
+  -X PATCH \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "usageLimit": "500000"
+  }'
+```
+
+<Note>
+Usage limits are measured in total tokens (input + output). Requests are blocked when the limit is reached.
+</Note>
+
+### Check Current Usage
+
+Usage is tracked automatically:
+
+```typescript apps/gateway/src/chat/chat.ts
+if (apiKey.usageLimit && Number(apiKey.usage) >= Number(apiKey.usageLimit)) {
+  throw new HTTPException(401, {
+    message: "Unauthorized: LLMGateway API key reached its usage limit."
+  });
+}
+```
+
+## API Key Status
+
+API keys can have three statuses:
+
+- **active** - Key is valid and can be used
+- **inactive** - Key is disabled (can be re-enabled)
+- **deleted** - Key is soft-deleted (cannot be recovered)
+
+### Update Status
+
+```bash
+curl https://api.llmgateway.io/keys/api/key_xyz789 \
+  -X PATCH \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "inactive"
+  }'
+```
+
+### Delete API Key
+
+```bash
+curl https://api.llmgateway.io/keys/api/key_xyz789 \
+  -X DELETE \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+<Warning>
+Deleted API keys cannot be recovered. All active requests using the key will immediately fail.
+</Warning>
+
+## IAM Rules
+
+Control what models and providers each API key can access:
+
+```typescript apps/api/src/routes/keys-api.ts
+interface IamRule {
+  ruleType: 
+    | "allow_models" 
+    | "deny_models" 
+    | "allow_pricing" 
+    | "deny_pricing" 
+    | "allow_providers" 
+    | "deny_providers";
+  ruleValue: {
+    models?: string[];  // e.g., ["gpt-4o", "claude-3-5-sonnet-20241022"]
+    providers?: string[];  // e.g., ["openai", "anthropic"]
+    pricingType?: "free" | "paid";
+    maxInputPrice?: number;  // per 1M tokens
+    maxOutputPrice?: number;  // per 1M tokens
+  };
+  status: "active" | "inactive";
+}
+```
+
+### Create IAM Rule
+
+<Tabs>
+  <Tab title="Allow Specific Models">
+    ```bash
+    curl https://api.llmgateway.io/keys/api/key_xyz789/iam \
+      -X POST \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "ruleType": "allow_models",
+        "ruleValue": {
+          "models": ["gpt-4o", "gpt-4o-mini"]
+        },
+        "status": "active"
+      }'
+    ```
+  </Tab>
+  
+  <Tab title="Deny Expensive Models">
+    ```bash
+    curl https://api.llmgateway.io/keys/api/key_xyz789/iam \
+      -X POST \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "ruleType": "allow_pricing",
+        "ruleValue": {
+          "maxInputPrice": 5.0,
+          "maxOutputPrice": 15.0
+        },
+        "status": "active"
+      }'
+    ```
+  </Tab>
+  
+  <Tab title="Block Provider">
+    ```bash
+    curl https://api.llmgateway.io/keys/api/key_xyz789/iam \
+      -X POST \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "ruleType": "deny_providers",
+        "ruleValue": {
+          "providers": ["aws-bedrock"]
+        },
+        "status": "active"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+### List IAM Rules
+
+```bash
+curl "https://api.llmgateway.io/keys/api/key_xyz789/iam" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+### Update IAM Rule
+
+```bash
+curl https://api.llmgateway.io/keys/api/key_xyz789/iam/rule_abc \
+  -X PATCH \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "inactive"
+  }'
+```
+
+### Delete IAM Rule
+
+```bash
+curl https://api.llmgateway.io/keys/api/key_xyz789/iam/rule_abc \
+  -X DELETE \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+## IAM Validation
+
+IAM rules are enforced on every request:
+
+```typescript apps/gateway/src/lib/iam.ts
+export async function validateModelAccess(
+  apiKeyId: string,
+  modelId: string,
+  requestedProvider: string | undefined,
+  modelInfo: ModelDefinition
+): Promise<{
+  allowed: boolean;
+  reason?: string;
+  allowedProviders?: string[];
+}> {
+  // Check all IAM rules for this API key
+  const iamRules = await db.query.apiKeyIamRule.findMany({
+    where: { apiKeyId: { eq: apiKeyId }, status: { eq: "active" } }
+  });
+  
+  // Apply allow_models, deny_models, allow_pricing, etc.
+  // Returns list of allowed providers or error
+}
+```
+
+## Plan Limits
+
+| Plan | Max API Keys per Project |
+|------|-------------------------|
+| Free | 5 |
+| Pro  | 20 |
+| Enterprise | Unlimited |
+
+## Permissions
+
+API key management permissions by role:
+
+| Action | Developer | Admin | Owner |
+|--------|-----------|-------|-------|
+| View all keys | ✅ | ✅ | ✅ |
+| Create key | ✅ | ✅ | ✅ |
+| Update own key | ✅ | ✅ | ✅ |
+| Update any key | ❌ | ✅ | ✅ |
+| Delete own key | ✅ | ✅ | ✅ |
+| Delete any key | ❌ | ✅ | ✅ |
+| Manage IAM rules | Own keys | All keys | All keys |
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Rotate Keys Regularly" icon="rotate">
+    Create new keys and delete old ones every 90 days
+  </Card>
+  
+  <Card title="Use Separate Keys" icon="layer-group">
+    Create different keys for dev, staging, and production
+  </Card>
+  
+  <Card title="Set Usage Limits" icon="gauge-high">
+    Always set usage limits to prevent unexpected costs
+  </Card>
+  
+  <Card title="Use IAM Rules" icon="shield">
+    Restrict keys to specific models/providers
+  </Card>
+</CardGroup>
+
+<Tip>
+Use descriptive names for API keys (e.g., "Production Backend", "Staging Frontend") to track usage more easily.
+</Tip>
+
+## Security
+
+- API keys are hashed before storage
+- Full keys are never logged or displayed after creation
+- Failed authentication attempts are tracked
+- Compromised keys can be instantly revoked
+
+## Related Documentation
+
+- [Usage Analytics](/features/analytics)
+- [Rate Limiting](/features/rate-limiting)
+- [Multi-Provider Support](/features/multi-provider)

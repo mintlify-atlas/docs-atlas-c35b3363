@@ -1,0 +1,471 @@
+---
+title: Data Retention
+description: Configure and manage data retention policies in LLM Gateway Enterprise
+---
+
+## Overview
+
+LLM Gateway Enterprise provides flexible data retention policies to balance compliance requirements with storage costs.
+
+## Retention Levels
+
+Organizations can choose between two retention levels:
+
+### Retain (Full Retention)
+
+Store complete request and response data indefinitely:
+
+```typescript
+retentionLevel: "retain"
+```
+
+**What's stored:**
+- Complete request payloads
+- Full response content
+- Message history
+- Model parameters
+- Function calls
+- Tool usage
+- Images and files
+- Error details
+- Performance metrics
+
+**Use cases:**
+- Compliance requirements
+- Audit trails
+- Model fine-tuning
+- Quality assurance
+- Debugging production issues
+
+**Cost:** $0.01 per 1M tokens stored
+
+### None (Metadata Only)
+
+Store only aggregated metrics, no verbose data:
+
+```typescript
+retentionLevel: "none"
+```
+
+**What's stored:**
+- Request count
+- Token usage (totals)
+- Cost information
+- Response times
+- Error rates
+- Model/provider used
+- Timestamp
+
+**What's NOT stored:**
+- Request content
+- Response content
+- Prompt text
+- Completion text
+- Function arguments
+- Images
+
+**Use cases:**
+- Cost optimization
+- Privacy-first applications
+- Minimal data exposure
+- High-volume services
+
+**Cost:** No storage fees
+
+## Configuration
+
+### Set Retention Level
+
+Configure at the organization level:
+
+```typescript
+import { updateOrganization } from '@/lib/organizations';
+
+await updateOrganization({
+  organizationId: 'org_123',
+  retentionLevel: 'retain' // or 'none'
+});
+```
+
+### Via Admin Dashboard
+
+1. Navigate to organization settings
+2. Go to "Data Retention" section
+3. Select retention level
+4. Save changes
+
+### Via API
+
+```bash
+curl -X PATCH https://api.llmgateway.io/organizations/org_123 \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"retentionLevel": "retain"}'
+```
+
+## Data Lifecycle
+
+### With Retention Enabled
+
+```
+Request Made
+     ↓
+Data Logged (full payload)
+     ↓
+Stored in PostgreSQL
+     ↓
+Retained indefinitely
+     ↓
+Available for queries
+```
+
+### With Retention Disabled
+
+```
+Request Made
+     ↓
+Data Logged (metadata only)
+     ↓
+Verbose fields = null
+     ↓
+Aggregated metrics stored
+     ↓
+No cleanup needed
+```
+
+## Cleanup Process
+
+### Automatic Cleanup
+
+When retention is set to "none", the system automatically cleans up:
+
+```typescript
+// Worker process runs every 5 minutes
+const RETENTION_DAYS = 30;
+
+// Nullify verbose data older than 30 days
+UPDATE log
+SET 
+  request = null,
+  response = null,
+  messages = null,
+  functions = null,
+  tools = null,
+  error = null,
+  data_retention_cleaned_up = true
+WHERE 
+  created_at < NOW() - INTERVAL '30 days'
+  AND data_retention_cleaned_up = false;
+```
+
+### Enable Cleanup
+
+Set environment variable:
+
+```bash
+ENABLE_DATA_RETENTION_CLEANUP=true
+```
+
+<Warning>
+Cleanup is **irreversible**. Once verbose data is nullified, it cannot be recovered.
+</Warning>
+
+### Manual Cleanup
+
+Force cleanup for specific organization:
+
+```bash
+# Run cleanup job
+pnpm --filter worker cleanup:data-retention --org=org_123
+```
+
+## Storage Costs
+
+### Calculation
+
+Storage is billed based on token count:
+
+```typescript
+function calculateStorageCost(
+  totalTokens: number,
+  retentionLevel: "retain" | "none"
+): number {
+  if (retentionLevel === "none") {
+    return 0;
+  }
+  
+  // $0.01 per 1M tokens
+  const costPerToken = 0.01 / 1_000_000;
+  return totalTokens * costPerToken;
+}
+```
+
+### Examples
+
+| Tokens | Retention | Monthly Cost |
+|--------|-----------|-------------|
+| 1M | Retain | $0.01 |
+| 10M | Retain | $0.10 |
+| 100M | Retain | $1.00 |
+| 1B | Retain | $10.00 |
+| Any | None | $0.00 |
+
+### Billing
+
+Storage costs are:
+
+- Calculated per request
+- Deducted from organization credits
+- Shown in usage breakdowns
+- Tracked separately from model costs
+
+## Database Schema
+
+### Log Table
+
+```sql
+CREATE TABLE log (
+  id TEXT PRIMARY KEY,
+  created_at TIMESTAMP NOT NULL,
+  organization_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  
+  -- Always stored (metadata)
+  model TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  total_tokens BIGINT,
+  input_tokens BIGINT,
+  output_tokens BIGINT,
+  cached_tokens BIGINT,
+  cost DECIMAL,
+  duration INTEGER,
+  status TEXT,
+  
+  -- Verbose data (nullified based on retention)
+  request JSONB,
+  response JSONB,
+  messages JSONB,
+  functions JSONB,
+  tools JSONB,
+  error JSONB,
+  
+  -- Cleanup tracking
+  data_retention_cleaned_up BOOLEAN DEFAULT false,
+  
+  INDEX idx_log_data_retention_pending (
+    created_at
+  ) WHERE data_retention_cleaned_up = false
+);
+```
+
+### Organization Schema
+
+```sql
+CREATE TABLE organization (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  retention_level TEXT NOT NULL DEFAULT 'none', -- 'retain' or 'none'
+  -- ... other fields
+);
+```
+
+## Querying Data
+
+### With Retention
+
+```sql
+-- Query full request details
+SELECT 
+  id,
+  created_at,
+  request->>'model' AS model,
+  request->'messages' AS messages,
+  response->>'content' AS content,
+  total_tokens,
+  cost
+FROM log
+WHERE 
+  organization_id = 'org_123'
+  AND created_at > NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+```
+
+### Without Retention
+
+```sql
+-- Only aggregated metrics available
+SELECT 
+  id,
+  created_at,
+  model,
+  provider,
+  total_tokens,
+  cost,
+  duration,
+  status
+FROM log
+WHERE 
+  organization_id = 'org_123'
+  AND created_at > NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+
+-- Request and response fields will be null
+```
+
+## Analytics Impact
+
+### Available with Both Levels
+
+- Total requests
+- Token usage
+- Cost tracking
+- Response times
+- Error rates
+- Model usage
+- Provider distribution
+
+### Only Available with Retention
+
+- Full request inspection
+- Response content analysis
+- Prompt engineering insights
+- Function call debugging
+- Fine-tuning data export
+- Content filtering logs
+
+## Compliance
+
+### GDPR Considerations
+
+**With Retention:**
+- Store data as long as needed
+- Implement data export
+- Support right to deletion
+- Document retention periods
+
+**Without Retention:**
+- Minimal data exposure
+- Automatic anonymization
+- Reduced compliance burden
+- No PII in logs
+
+### Data Export
+
+Export all data for an organization:
+
+```bash
+# Export logs
+curl -X GET https://api.llmgateway.io/organizations/org_123/logs/export \
+  -H "Authorization: Bearer $API_KEY" \
+  -o logs.jsonl
+```
+
+### Data Deletion
+
+Delete all data for an organization:
+
+```bash
+# Hard delete (cannot be undone)
+curl -X DELETE https://api.llmgateway.io/organizations/org_123/data \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+## Migration
+
+### Enabling Retention
+
+When switching from "none" to "retain":
+
+1. Future requests stored with full data
+2. Past requests remain metadata-only
+3. No backfilling of old data
+4. Storage costs start immediately
+
+### Disabling Retention
+
+When switching from "retain" to "none":
+
+1. Future requests metadata-only
+2. Past verbose data retained until cleanup
+3. Cleanup runs after 30 days
+4. Storage costs for existing data until cleaned
+
+<Note>
+Changing retention level only affects new requests. Existing data follows the old policy until cleaned up.
+</Note>
+
+## Best Practices
+
+### Development
+
+- Use "retain" in development/staging
+- Enables full debugging
+- No cost concerns with low volume
+
+### Production
+
+- Evaluate compliance requirements
+- Consider storage costs at scale
+- Use "none" for privacy-sensitive apps
+- Use "retain" for audit requirements
+
+### Hybrid Approach
+
+- Separate dev and prod projects
+- Dev: retention enabled
+- Prod: retention disabled
+- Best of both worlds
+
+## Monitoring
+
+### Storage Usage
+
+Track storage metrics:
+
+```typescript
+interface StorageMetrics {
+  totalRecords: number;
+  recordsWithVerboseData: number;
+  recordsCleanedUp: number;
+  estimatedStorageMB: number;
+  monthlyStorageCost: number;
+}
+```
+
+### Alerts
+
+Set up alerts for:
+
+- Storage cost threshold exceeded
+- Cleanup failures
+- Unexpected retention changes
+- Large data exports
+
+## Troubleshooting
+
+### Storage Costs Higher Than Expected
+
+1. Check retention level: `SELECT retention_level FROM organization WHERE id = 'org_123'`
+2. Verify cleanup is enabled: `ENABLE_DATA_RETENTION_CLEANUP=true`
+3. Check cleanup status: `SELECT COUNT(*) FROM log WHERE data_retention_cleaned_up = false`
+4. Run manual cleanup if needed
+
+### Missing Request Data
+
+1. Check retention level (might be "none")
+2. Verify request date (might be cleaned up)
+3. Check `data_retention_cleaned_up` flag
+4. Review cleanup logs
+
+### Cleanup Not Running
+
+```bash
+# Check worker logs
+docker compose logs worker
+
+# Verify environment variable
+echo $ENABLE_DATA_RETENTION_CLEANUP
+
+# Check worker status
+curl http://localhost:4003/health
+```

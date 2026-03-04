@@ -1,0 +1,179 @@
+---
+title: Authentication
+description: How to authenticate requests to the LLM Gateway API
+---
+
+The LLM Gateway API uses API keys to authenticate requests. You must include your API key in every request.
+
+## API Key Types
+
+The gateway supports two authentication methods:
+
+### Bearer Token (Recommended)
+
+Include your API key in the `Authorization` header:
+
+```bash
+curl https://api.llmgateway.io/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+### X-API-Key Header
+
+Alternatively, use the `x-api-key` header:
+
+```bash
+curl https://api.llmgateway.io/v1/chat/completions \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+## Getting Your API Key
+
+1. Sign in to your LLM Gateway dashboard
+2. Navigate to the **API Keys** page
+3. Click **Create API Key**
+4. Copy and securely store your API key
+
+<Warning>
+  API keys grant full access to your account. Never share them publicly or commit them to version control.
+</Warning>
+
+## API Key Status
+
+API keys can have the following statuses:
+
+- **Active** - Key is valid and can be used
+- **Inactive** - Key has been disabled
+- **Deleted** - Key has been permanently removed
+
+## Usage Limits
+
+API keys can have optional usage limits:
+
+```typescript
+{
+  "usageLimit": "1000.00",  // Maximum usage in USD
+  "usage": "250.50"         // Current usage in USD
+}
+```
+
+Once a key reaches its usage limit, requests will be rejected with a `401 Unauthorized` error:
+
+```json
+{
+  "error": true,
+  "status": 401,
+  "message": "Unauthorized: LLMGateway API key reached its usage limit."
+}
+```
+
+## Authentication Errors
+
+### Missing API Key
+
+```json
+{
+  "error": true,
+  "status": 401,
+  "message": "Unauthorized: No API key provided. Expected 'Authorization: Bearer your-api-token' header or 'x-api-key: your-api-token' header"
+}
+```
+
+### Invalid API Key
+
+```json
+{
+  "error": true,
+  "status": 401,
+  "message": "Unauthorized: Invalid LLMGateway API token. Please make sure the token is not deleted or disabled. Go to the LLMGateway 'API Keys' page to generate a new token."
+}
+```
+
+### Usage Limit Reached
+
+```json
+{
+  "error": true,
+  "status": 401,
+  "message": "Unauthorized: LLMGateway API key reached its usage limit."
+}
+```
+
+## Project Modes
+
+API keys are associated with projects that operate in different modes:
+
+### API Keys Mode
+
+Requires provider API keys to be configured in your project settings. The gateway uses your provider keys to make requests.
+
+### Credits Mode
+
+Uses LLM Gateway's shared pool of provider keys. Requests are billed against your account credits.
+
+### Hybrid Mode
+
+Attempts to use your provider API keys first, then falls back to credits if no key is configured.
+
+## IAM Permissions
+
+API keys can have IAM policies that restrict:
+
+- Which models can be accessed
+- Which providers can be used
+- Which operations are allowed
+
+If an IAM policy denies access, you'll receive a `403 Forbidden` error:
+
+```json
+{
+  "error": true,
+  "status": 403,
+  "message": "Access denied: No providers are allowed for model gpt-4 after applying IAM rules."
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Rotate API Keys Regularly">
+    Create new API keys periodically and delete old ones to minimize security risks.
+  </Accordion>
+
+  <Accordion title="Use Environment Variables">
+    Store API keys in environment variables instead of hardcoding them:
+    
+    ```bash
+    export LLMGATEWAY_API_KEY="your-api-key"
+    ```
+  </Accordion>
+
+  <Accordion title="Set Usage Limits">
+    Configure usage limits on API keys to prevent unexpected charges from runaway processes.
+  </Accordion>
+
+  <Accordion title="Use Separate Keys for Environments">
+    Create different API keys for development, staging, and production environments.
+  </Accordion>
+</AccordionGroup>
+
+## Testing Authentication
+
+Test your API key with the models endpoint:
+
+```bash
+curl https://api.llmgateway.io/v1/models \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+If authentication succeeds, you'll receive a list of available models.

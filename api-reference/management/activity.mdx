@@ -1,0 +1,521 @@
+---
+title: Activity Logs
+description: Query usage statistics and activity data
+---
+
+Activity logs provide detailed usage statistics and analytics for your LLM Gateway usage. Query by date range, project, or API key.
+
+## Get Activity Data
+
+Retrieve aggregated activity statistics grouped by day.
+
+<ParamField query="days" type="number">
+  Number of days to retrieve (overridden if `from` and `to` are specified)
+</ParamField>
+
+<ParamField query="from" type="string">
+  Start date in YYYY-MM-DD format (inclusive)
+</ParamField>
+
+<ParamField query="to" type="string">
+  End date in YYYY-MM-DD format (inclusive)
+</ParamField>
+
+<ParamField query="projectId" type="string">
+  Filter by specific project ID
+</ParamField>
+
+<ParamField query="apiKeyId" type="string">
+  Filter by specific API key ID
+</ParamField>
+
+<ResponseField name="activity" type="array">
+  Array of daily activity objects
+  
+  <Expandable title="Daily Activity Object">
+    <ResponseField name="date" type="string">
+      Date in YYYY-MM-DD format
+    </ResponseField>
+    
+    <ResponseField name="requestCount" type="number">
+      Total number of requests
+    </ResponseField>
+    
+    <ResponseField name="inputTokens" type="number">
+      Total input tokens
+    </ResponseField>
+    
+    <ResponseField name="outputTokens" type="number">
+      Total output tokens
+    </ResponseField>
+    
+    <ResponseField name="cachedTokens" type="number">
+      Total cached tokens
+    </ResponseField>
+    
+    <ResponseField name="totalTokens" type="number">
+      Total tokens (input + output)
+    </ResponseField>
+    
+    <ResponseField name="cost" type="number">
+      Total cost in USD
+    </ResponseField>
+    
+    <ResponseField name="inputCost" type="number">
+      Cost for input tokens
+    </ResponseField>
+    
+    <ResponseField name="outputCost" type="number">
+      Cost for output tokens
+    </ResponseField>
+    
+    <ResponseField name="requestCost" type="number">
+      Per-request costs
+    </ResponseField>
+    
+    <ResponseField name="dataStorageCost" type="number">
+      Cost for log storage
+    </ResponseField>
+    
+    <ResponseField name="imageInputCost" type="number">
+      Cost for image input tokens
+    </ResponseField>
+    
+    <ResponseField name="imageOutputCost" type="number">
+      Cost for image output tokens
+    </ResponseField>
+    
+    <ResponseField name="cachedInputCost" type="number">
+      Cost for cached input tokens
+    </ResponseField>
+    
+    <ResponseField name="errorCount" type="number">
+      Number of failed requests
+    </ResponseField>
+    
+    <ResponseField name="errorRate" type="number">
+      Error rate as percentage (0-100)
+    </ResponseField>
+    
+    <ResponseField name="cacheCount" type="number">
+      Number of cached responses
+    </ResponseField>
+    
+    <ResponseField name="cacheRate" type="number">
+      Cache hit rate as percentage (0-100)
+    </ResponseField>
+    
+    <ResponseField name="discountSavings" type="number">
+      Total savings from discounts
+    </ResponseField>
+    
+    <ResponseField name="creditsRequestCount" type="number">
+      Requests using Gateway credits
+    </ResponseField>
+    
+    <ResponseField name="apiKeysRequestCount" type="number">
+      Requests using your provider keys
+    </ResponseField>
+    
+    <ResponseField name="creditsCost" type="number">
+      Cost from credit-based requests
+    </ResponseField>
+    
+    <ResponseField name="apiKeysCost" type="number">
+      Cost from provider key requests
+    </ResponseField>
+    
+    <ResponseField name="creditsDataStorageCost" type="number">
+      Storage cost for credit requests
+    </ResponseField>
+    
+    <ResponseField name="apiKeysDataStorageCost" type="number">
+      Storage cost for provider key requests
+    </ResponseField>
+    
+    <ResponseField name="modelBreakdown" type="array">
+      Per-model usage breakdown
+      
+      <Expandable>
+        <ResponseField name="id" type="string">Model ID</ResponseField>
+        <ResponseField name="provider" type="string">Provider ID</ResponseField>
+        <ResponseField name="requestCount" type="number">Request count</ResponseField>
+        <ResponseField name="inputTokens" type="number">Input tokens</ResponseField>
+        <ResponseField name="outputTokens" type="number">Output tokens</ResponseField>
+        <ResponseField name="totalTokens" type="number">Total tokens</ResponseField>
+        <ResponseField name="cost" type="number">Total cost</ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL - Last 7 Days
+curl "https://api.llmgateway.io/activity?days=7" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+```bash cURL - Date Range
+curl "https://api.llmgateway.io/activity?from=2024-01-01&to=2024-01-15" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+```bash cURL - Specific Project
+curl "https://api.llmgateway.io/activity?projectId=proj_xyz789&days=30" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+```bash cURL - Specific API Key
+curl "https://api.llmgateway.io/activity?apiKeyId=key_xyz789&days=7" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+```javascript JavaScript
+// Last 30 days
+const response = await fetch('https://api.llmgateway.io/activity?days=30', {
+  headers: {
+    'Authorization': 'Bearer YOUR_SESSION_TOKEN'
+  }
+});
+
+const data = await response.json();
+console.log('Activity:', data.activity);
+
+// Custom date range
+const response2 = await fetch(
+  'https://api.llmgateway.io/activity?from=2024-01-01&to=2024-01-15',
+  {
+    headers: {
+      'Authorization': 'Bearer YOUR_SESSION_TOKEN'
+    }
+  }
+);
+```
+
+```python Python
+import requests
+from datetime import datetime, timedelta
+
+# Last 7 days
+response = requests.get(
+    'https://api.llmgateway.io/activity',
+    headers={'Authorization': 'Bearer YOUR_SESSION_TOKEN'},
+    params={'days': 7}
+)
+
+activity = response.json()['activity']
+
+# Custom date range
+response2 = requests.get(
+    'https://api.llmgateway.io/activity',
+    headers={'Authorization': 'Bearer YOUR_SESSION_TOKEN'},
+    params={
+        'from': '2024-01-01',
+        'to': '2024-01-15',
+        'projectId': 'proj_xyz789'
+    }
+)
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "activity": [
+    {
+      "date": "2024-01-15",
+      "requestCount": 1250,
+      "inputTokens": 125000,
+      "outputTokens": 75000,
+      "cachedTokens": 25000,
+      "totalTokens": 200000,
+      "cost": 4.85,
+      "inputCost": 1.25,
+      "outputCost": 3.50,
+      "requestCost": 0.05,
+      "dataStorageCost": 0.05,
+      "imageInputCost": 0,
+      "imageOutputCost": 0,
+      "cachedInputCost": 0,
+      "errorCount": 12,
+      "errorRate": 0.96,
+      "cacheCount": 50,
+      "cacheRate": 4.0,
+      "discountSavings": 0.50,
+      "creditsRequestCount": 500,
+      "apiKeysRequestCount": 750,
+      "creditsCost": 2.00,
+      "apiKeysCost": 2.85,
+      "creditsDataStorageCost": 0.02,
+      "apiKeysDataStorageCost": 0.03,
+      "modelBreakdown": [
+        {
+          "id": "gpt-4o",
+          "provider": "openai",
+          "requestCount": 500,
+          "inputTokens": 50000,
+          "outputTokens": 30000,
+          "totalTokens": 80000,
+          "cost": 2.00
+        },
+        {
+          "id": "claude-3-5-sonnet-20241022",
+          "provider": "anthropic",
+          "requestCount": 400,
+          "inputTokens": 40000,
+          "outputTokens": 25000,
+          "totalTokens": 65000,
+          "cost": 1.95
+        },
+        {
+          "id": "gpt-4o-mini",
+          "provider": "openai",
+          "requestCount": 350,
+          "inputTokens": 35000,
+          "outputTokens": 20000,
+          "totalTokens": 55000,
+          "cost": 0.90
+        }
+      ]
+    },
+    {
+      "date": "2024-01-14",
+      "requestCount": 1100,
+      "inputTokens": 110000,
+      "outputTokens": 66000,
+      "cachedTokens": 22000,
+      "totalTokens": 176000,
+      "cost": 4.25,
+      "inputCost": 1.10,
+      "outputCost": 3.08,
+      "requestCost": 0.04,
+      "dataStorageCost": 0.03,
+      "imageInputCost": 0,
+      "imageOutputCost": 0,
+      "cachedInputCost": 0,
+      "errorCount": 8,
+      "errorRate": 0.73,
+      "cacheCount": 45,
+      "cacheRate": 4.09,
+      "discountSavings": 0.45,
+      "creditsRequestCount": 440,
+      "apiKeysRequestCount": 660,
+      "creditsCost": 1.70,
+      "apiKeysCost": 2.55,
+      "creditsDataStorageCost": 0.01,
+      "apiKeysDataStorageCost": 0.02,
+      "modelBreakdown": [
+        {
+          "id": "gpt-4o",
+          "provider": "openai",
+          "requestCount": 450,
+          "inputTokens": 45000,
+          "outputTokens": 27000,
+          "totalTokens": 72000,
+          "cost": 1.80
+        },
+        {
+          "id": "claude-3-5-sonnet-20241022",
+          "provider": "anthropic",
+          "requestCount": 380,
+          "inputTokens": 38000,
+          "outputTokens": 23000,
+          "totalTokens": 61000,
+          "cost": 1.83
+        },
+        {
+          "id": "gpt-4o-mini",
+          "provider": "openai",
+          "requestCount": 270,
+          "inputTokens": 27000,
+          "outputTokens": 16000,
+          "totalTokens": 43000,
+          "cost": 0.62
+        }
+      ]
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Understanding Costs
+
+### Cost Breakdown
+
+Total cost includes:
+
+1. **Input Cost**: Tokens sent to the model
+2. **Output Cost**: Tokens generated by the model
+3. **Request Cost**: Per-request fees (some providers)
+4. **Data Storage Cost**: Log retention charges
+5. **Image Costs**: Vision model image processing
+6. **Cached Input Cost**: Cached prompt tokens (some providers)
+
+### Credits vs Provider Keys
+
+The API tracks costs separately based on how requests were processed:
+
+- **Credits Cost**: Requests routed through Gateway-managed providers
+- **API Keys Cost**: Requests using your configured provider keys
+
+This helps you understand:
+- How much you're spending on credits
+- How much you're saving by using your own keys
+- Which mode (hybrid, credits, api-keys) is most cost-effective
+
+### Discounts
+
+Discounts can be applied at the:
+- **Global level**: All users for a specific provider/model
+- **Organization level**: Your organization for specific providers/models
+
+The `discountSavings` field shows how much you saved from applied discounts.
+
+---
+
+## Model Breakdown
+
+The `modelBreakdown` array provides per-model statistics:
+
+```json
+{
+  "id": "gpt-4o",
+  "provider": "openai",
+  "requestCount": 500,
+  "inputTokens": 50000,
+  "outputTokens": 30000,
+  "totalTokens": 80000,
+  "cost": 2.00
+}
+```
+
+Use this to:
+- Identify your most-used models
+- Compare costs across providers
+- Optimize model selection for cost
+- Track usage patterns
+
+---
+
+## Performance Metrics
+
+### Error Rate
+
+```
+errorRate = (errorCount / requestCount) * 100
+```
+
+A high error rate may indicate:
+- Provider API issues
+- Invalid requests
+- Rate limiting
+- Authentication problems
+
+### Cache Hit Rate
+
+```
+cacheRate = (cacheCount / requestCount) * 100
+```
+
+A higher cache rate means:
+- Lower costs (cached responses are free)
+- Faster response times
+- Reduced provider API load
+
+<Tip>
+Enable caching on your projects to improve cache hit rates and reduce costs.
+</Tip>
+
+---
+
+## Filtering Examples
+
+### By Project
+
+Track usage for a specific project:
+
+```bash
+curl "https://api.llmgateway.io/activity?projectId=proj_xyz789&days=30" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+### By API Key
+
+Monitor a specific API key's usage:
+
+```bash
+curl "https://api.llmgateway.io/activity?apiKeyId=key_xyz789&from=2024-01-01&to=2024-01-31" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+### Custom Date Range
+
+Query activity for a specific time period:
+
+```bash
+curl "https://api.llmgateway.io/activity?from=2024-01-01&to=2024-01-15" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+---
+
+## Data Retention
+
+Activity data is retained based on your organization's plan:
+
+| Plan | Retention Period |
+|------|------------------|
+| Free | 3 days |
+| Pro | 90 days |
+| Enterprise | Custom (up to 1 year) |
+
+<Note>
+Upgrade to Pro or Enterprise for extended data retention and historical analytics.
+</Note>
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 401 Unauthorized
+{
+  "message": "Unauthorized"
+}
+```
+
+```json 403 Forbidden
+{
+  "message": "You don't have access to this project"
+}
+```
+</ResponseExample>
+
+---
+
+## Best Practices
+
+<Check>
+**Monitor Regularly**
+- Check activity daily to catch anomalies
+- Set up alerts for unusual spending
+- Review error rates weekly
+</Check>
+
+<Check>
+**Optimize Costs**
+- Analyze model breakdown to find expensive models
+- Enable caching for repetitive requests
+- Use cheaper models where appropriate
+- Leverage discounts when available
+</Check>
+
+<Check>
+**Track Performance**
+- Monitor error rates over time
+- Compare cache hit rates across projects
+- Identify slow or unreliable providers
+</Check>

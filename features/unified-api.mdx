@@ -1,0 +1,325 @@
+---
+title: Unified API Interface
+description: Use a single API endpoint to access models from all providers with OpenAI-compatible formatting
+---
+
+## Overview
+
+LLM Gateway provides a **unified API interface** that allows you to access models from multiple providers (OpenAI, Anthropic, Google, AWS Bedrock, and more) using a single, consistent OpenAI-compatible API format.
+
+Instead of learning different APIs for each provider, you can use the familiar OpenAI SDK or API format for all your LLM requests.
+
+## Why It Matters
+
+<CardGroup cols={2}>
+  <Card title="Single Integration" icon="plug">
+    One API client works with all providers. No need to maintain separate SDK integrations.
+  </Card>
+  
+  <Card title="Easy Migration" icon="arrows-rotate">
+    Switch between providers without changing your code. Just update the model parameter.
+  </Card>
+  
+  <Card title="Provider Agnostic" icon="layer-group">
+    Write your application code once and let LLM Gateway handle provider-specific formatting.
+  </Card>
+  
+  <Card title="Future Proof" icon="rocket">
+    New providers are added to the gateway without requiring changes to your application.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+LLM Gateway transforms your requests on the fly:
+
+1. **You send** an OpenAI-formatted request to `/v1/chat/completions`
+2. **Gateway transforms** the request to the provider's native format
+3. **Provider responds** in their native format
+4. **Gateway transforms** the response back to OpenAI format
+5. **You receive** a standardized OpenAI-compatible response
+
+<Note>
+All transformations happen automatically. From your application's perspective, you're always using the OpenAI API format.
+</Note>
+
+## Supported Providers
+
+The unified API works with all supported providers:
+
+- **OpenAI** - GPT-4, GPT-3.5, and more
+- **Anthropic** - Claude 3.5 Sonnet, Claude 3 Opus
+- **Google AI Studio** - Gemini models
+- **Google Vertex AI** - Gemini via Vertex
+- **AWS Bedrock** - Claude, Llama, and more
+- **Azure OpenAI** - Enterprise OpenAI models
+- **DeepSeek** - DeepSeek-V3
+- **xAI** - Grok models
+- **Groq** - Ultra-fast inference
+- **Cerebras** - High-performance inference
+- And many more...
+
+## Usage Example
+
+<Tabs>
+  <Tab title="cURL">
+    ```bash
+    curl https://api.llmgateway.io/v1/chat/completions \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer YOUR_API_KEY" \
+      -d '{
+        "model": "anthropic/claude-3-5-sonnet-20241022",
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is the capital of France?"
+          }
+        ]
+      }'
+    ```
+  </Tab>
+  
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="YOUR_API_KEY"
+    )
+
+    # Use Anthropic's Claude
+    response = client.chat.completions.create(
+        model="anthropic/claude-3-5-sonnet-20241022",
+        messages=[
+            {"role": "user", "content": "What is the capital of France?"}
+        ]
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from 'openai';
+
+    const client = new OpenAI({
+      baseURL: 'https://api.llmgateway.io/v1',
+      apiKey: process.env.LLMGATEWAY_API_KEY,
+    });
+
+    // Use Google's Gemini
+    const response = await client.chat.completions.create({
+      model: 'google-ai-studio/gemini-2.0-flash-001',
+      messages: [
+        { role: 'user', content: 'What is the capital of France?' },
+      ],
+    });
+
+    console.log(response.choices[0].message.content);
+    ```
+  </Tab>
+</Tabs>
+
+## Model Format
+
+Specify models using the format `provider/model-id`:
+
+```json
+{
+  "model": "anthropic/claude-3-5-sonnet-20241022"
+}
+```
+
+Or let the gateway choose the provider automatically:
+
+```json
+{
+  "model": "gpt-4o"
+}
+```
+
+<Tip>
+When you don't specify a provider, LLM Gateway automatically routes to the cheapest available provider based on uptime, latency, and cost.
+</Tip>
+
+## Response Format
+
+All responses follow the OpenAI Chat Completions format:
+
+```typescript apps/gateway/src/chat/chat.ts
+interface ChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string | null;
+      reasoning?: string | null;
+      tool_calls?: Array<{
+        id: string;
+        type: "function";
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }>;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    reasoning_tokens?: number;
+    cost_usd_total?: number;
+    cost_usd_input?: number;
+    cost_usd_output?: number;
+  };
+  metadata: {
+    requested_model: string;
+    requested_provider: string | null;
+    used_model: string;
+    used_provider: string;
+    underlying_used_model: string;
+  };
+}
+```
+
+## Provider-Specific Transformations
+
+Here's how LLM Gateway handles different providers:
+
+### Anthropic (Claude)
+
+- Converts OpenAI message format to Anthropic's `user`/`assistant` format
+- Extracts system messages into the `system` parameter
+- Transforms tool definitions to Anthropic's `input_schema` format
+- Maps `reasoning_effort` to Anthropic's extended thinking
+
+### Google (Gemini)
+
+- Converts to Google's `contents` array format
+- Transforms messages to `parts` with `text` and `inline_data`
+- Maps tools to `functionDeclarations`
+- Handles vision inputs with base64 encoding
+
+### AWS Bedrock
+
+- Routes to appropriate Bedrock model endpoint
+- Handles streaming with AWS EventStream format
+- Transforms responses back to OpenAI format
+
+## Advanced Features
+
+The unified API supports advanced features across all providers:
+
+### Streaming
+
+```python
+for chunk in client.chat.completions.create(
+    model="anthropic/claude-3-5-sonnet-20241022",
+    messages=[{"role": "user", "content": "Count to 10"}],
+    stream=True
+):
+    print(chunk.choices[0].delta.content, end="")
+```
+
+### Function Calling
+
+```python
+response = client.chat.completions.create(
+    model="openai/gpt-4o",
+    messages=[{"role": "user", "content": "What's the weather?"}],
+    tools=[
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get the current weather",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string"}
+                    },
+                    "required": ["location"]
+                }
+            }
+        }
+    ]
+)
+```
+
+### JSON Output
+
+```python
+response = client.chat.completions.create(
+    model="openai/gpt-4o",
+    messages=[{"role": "user", "content": "Generate a user profile"}],
+    response_format={"type": "json_object"}
+)
+```
+
+<Warning>
+Not all providers support all features. The gateway will return an error if you request a feature that the selected provider doesn't support.
+</Warning>
+
+## Metadata and Routing
+
+Each response includes metadata about routing:
+
+```json
+{
+  "metadata": {
+    "requested_model": "gpt-4o",
+    "requested_provider": null,
+    "used_model": "gpt-4o-2024-08-06",
+    "used_provider": "openai",
+    "underlying_used_model": "gpt-4o-2024-08-06",
+    "routing": [
+      {
+        "provider": "openai",
+        "model": "gpt-4o-2024-08-06",
+        "status_code": 200,
+        "error_type": ""
+      }
+    ]
+  }
+}
+```
+
+## Error Handling
+
+Errors are returned in OpenAI's error format:
+
+```json
+{
+  "error": {
+    "message": "Invalid request parameters",
+    "type": "invalid_request_error",
+    "param": null,
+    "code": "invalid_parameters"
+  }
+}
+```
+
+## Configuration
+
+No special configuration is needed. Just use the OpenAI SDK with LLM Gateway's base URL:
+
+```python
+client = OpenAI(
+    base_url="https://api.llmgateway.io/v1",
+    api_key="YOUR_LLMGATEWAY_API_KEY"
+)
+```
+
+## Related Documentation
+
+- [Multi-Provider Support](/features/multi-provider)
+- [Rate Limiting](/features/rate-limiting)
+- [Response Caching](/features/caching)

@@ -1,0 +1,584 @@
+---
+title: Docker Deployment
+description: Deploy LLM Gateway Enterprise using Docker Compose
+---
+
+## Deployment Options
+
+LLM Gateway provides two Docker deployment configurations:
+
+1. **Unified** - All services in a single container
+2. **Split** - Separate containers for each service (recommended)
+
+## Prerequisites
+
+- Docker 20.10 or later
+- Docker Compose v2.0 or later
+- 4GB RAM minimum (8GB recommended)
+- PostgreSQL 17 support
+- Redis 8 support
+
+## Split Architecture (Recommended)
+
+Deploy each service as a separate container for better scalability and isolation.
+
+### Architecture
+
+```
+┌────────────────────┐
+│   Load Balancer      │
+└──────┬─────────────┘
+       │
+       ├─────── UI (3002)
+       ├─────── Playground (3003)
+       ├─────── Admin (3006)
+       ├─────── API (4002)
+       └─────── Gateway (4001)
+              │
+       ┌──────┼──────┐
+       │             │
+  PostgreSQL    Redis
+   (5432)      (6379)
+```
+
+### Docker Compose File
+
+Create `docker-compose.yml`:
+
+```yaml
+name: llmgateway-prod
+
+services:
+  # Gateway Service
+  gateway:
+    image: ghcr.io/theopenco/llmgateway-gateway:latest
+    container_name: llmgateway-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-4001}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - llmgateway-network
+    environment:
+      - NODE_ENV=production
+      - PORT=80
+      - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-llmgateway}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - LLM_OPENAI_API_KEY=${LLM_OPENAI_API_KEY}
+      - LLM_ANTHROPIC_API_KEY=${LLM_ANTHROPIC_API_KEY}
+
+  # API Service
+  api:
+    image: ghcr.io/theopenco/llmgateway-api:latest
+    container_name: llmgateway-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-4002}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - llmgateway-network
+    environment:
+      - NODE_ENV=production
+      - RUN_MIGRATIONS=true
+      - PORT=80
+      - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-llmgateway}
+      - UI_URL=${UI_URL:-http://localhost:3002}
+      - API_URL=${API_URL:-http://localhost:4002}
+      - ORIGIN_URLS=${ORIGIN_URLS}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-localhost}
+      - PASSKEY_RP_ID=${PASSKEY_RP_ID:-localhost}
+      - PASSKEY_RP_NAME=${PASSKEY_RP_NAME:-LLMGateway}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+
+  # UI Service
+  ui:
+    image: ghcr.io/theopenco/llmgateway-ui:latest
+    container_name: llmgateway-ui
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-3002}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - llmgateway-network
+    environment:
+      - API_URL=${API_URL:-http://localhost:4002}
+      - API_BACKEND_URL=http://api:80
+      - PLAYGROUND_URL=${PLAYGROUND_URL:-http://localhost:3003}
+      - DOCS_URL=${DOCS_URL:-http://localhost:3005}
+
+  # Playground Service
+  playground:
+    image: ghcr.io/theopenco/llmgateway-playground:latest
+    container_name: llmgateway-playground
+    restart: unless-stopped
+    ports:
+      - "${PLAYGROUND_PORT:-3003}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - llmgateway-network
+    environment:
+      - API_URL=${API_URL:-http://localhost:4002}
+      - API_BACKEND_URL=http://api:80
+
+  # Admin Service
+  admin:
+    image: ghcr.io/theopenco/llmgateway-admin:latest
+    container_name: llmgateway-admin
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-3006}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - llmgateway-network
+    environment:
+      - API_URL=${API_URL:-http://localhost:4002}
+      - API_BACKEND_URL=http://api:80
+
+  # PostgreSQL Database
+  postgres:
+    platform: linux/amd64
+    image: postgres:17-alpine
+    container_name: llmgateway-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-llmgateway}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - llmgateway-network
+
+  # Redis for caching and queues
+  redis:
+    image: redis:8-alpine
+    platform: linux/amd64
+    container_name: llmgateway-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - llmgateway-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  llmgateway-network:
+    driver: bridge
+```
+
+### Environment Variables
+
+Create `.env` file (see [Environment Variables](/enterprise/deployment/environment-variables) for full list):
+
+```bash
+# Database
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your-secure-password
+POSTGRES_DB=llmgateway
+POSTGRES_PORT=5432
+
+# Redis
+REDIS_PASSWORD=your-redis-password
+REDIS_PORT=6379
+
+# Service Ports
+GATEWAY_PORT=4001
+API_PORT=4002
+UI_PORT=3002
+PLAYGROUND_PORT=3003
+ADMIN_PORT=3006
+
+# URLs (update for your domain)
+UI_URL=https://llmgateway.yourdomain.com
+API_URL=https://api.llmgateway.yourdomain.com
+ORIGIN_URLS=https://llmgateway.yourdomain.com
+COOKIE_DOMAIN=yourdomain.com
+
+# Authentication
+PASSKEY_RP_ID=yourdomain.com
+PASSKEY_RP_NAME=LLMGateway
+AUTH_SECRET=generate-with-openssl-rand-base64-32
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# Stripe (optional)
+STRIPE_SECRET_KEY=sk_live_your-key
+STRIPE_WEBHOOK_SECRET=whsec_your-secret
+
+# LLM Provider API Keys
+LLM_OPENAI_API_KEY=sk-your-openai-key
+LLM_ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
+```
+
+### Deploy
+
+```bash
+# Start all services
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Check health
+docker compose ps
+
+# Stop all services
+docker compose down
+
+# Stop and remove volumes
+docker compose down -v
+```
+
+## Unified Architecture
+
+All services in a single container - simpler but less scalable.
+
+### Docker Compose File
+
+```yaml
+name: llmgateway-unified
+
+services:
+  llmgateway:
+    image: ghcr.io/theopenco/llmgateway-unified:latest
+    container_name: llmgateway
+    restart: unless-stopped
+    ports:
+      - "3002:3002" # UI
+      - "3003:3003" # Playground
+      - "3006:3006" # Admin
+      - "4001:4001" # Gateway
+      - "4002:4002" # API
+      - "5432:5432" # PostgreSQL
+      - "6379:6379" # Redis
+    volumes:
+      - llmgateway_postgres:/var/lib/postgresql/data
+      - llmgateway_redis:/var/lib/redis
+    environment:
+      - UI_URL=${UI_URL:-http://localhost:3002}
+      - API_URL=${API_URL:-http://localhost:4002}
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@localhost:5432/llmgateway
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - LLM_OPENAI_API_KEY=${LLM_OPENAI_API_KEY}
+      - LLM_ANTHROPIC_API_KEY=${LLM_ANTHROPIC_API_KEY}
+
+volumes:
+  llmgateway_postgres:
+    driver: local
+  llmgateway_redis:
+    driver: local
+```
+
+### Deploy
+
+```bash
+# Start unified container
+docker compose -f docker-compose.unified.yml up -d
+
+# View logs
+docker compose -f docker-compose.unified.yml logs -f
+
+# Stop
+docker compose -f docker-compose.unified.yml down
+```
+
+## Health Checks
+
+All services include health checks:
+
+### Gateway
+
+```bash
+curl http://localhost:4001/
+```
+
+### API
+
+```bash
+curl http://localhost:4002/
+```
+
+### UI
+
+```bash
+curl http://localhost:3002/
+```
+
+### PostgreSQL
+
+```bash
+docker exec llmgateway-postgres pg_isready -U postgres
+```
+
+### Redis
+
+```bash
+docker exec llmgateway-redis redis-cli ping
+```
+
+## Data Persistence
+
+### Volumes
+
+Data is persisted in Docker volumes:
+
+- `postgres_data` - PostgreSQL database
+- `redis_data` - Redis cache and queues
+
+### Backup PostgreSQL
+
+```bash
+# Backup
+docker exec llmgateway-postgres pg_dump -U postgres llmgateway > backup.sql
+
+# Restore
+cat backup.sql | docker exec -i llmgateway-postgres psql -U postgres llmgateway
+```
+
+### Backup Redis
+
+```bash
+# Trigger save
+docker exec llmgateway-redis redis-cli SAVE
+
+# Copy dump file
+docker cp llmgateway-redis:/data/dump.rdb ./redis-backup.rdb
+```
+
+## Scaling
+
+### Horizontal Scaling
+
+Scale specific services:
+
+```bash
+# Scale gateway to 3 instances
+docker compose up -d --scale gateway=3
+
+# Scale API to 2 instances
+docker compose up -d --scale api=2
+```
+
+### Load Balancer
+
+Add nginx for load balancing:
+
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - gateway
+      - api
+      - ui
+    networks:
+      - llmgateway-network
+```
+
+## Monitoring
+
+### Docker Stats
+
+```bash
+# View resource usage
+docker stats
+```
+
+### Service Logs
+
+```bash
+# All services
+docker compose logs -f
+
+# Specific service
+docker compose logs -f gateway
+
+# Last 100 lines
+docker compose logs --tail=100 api
+```
+
+### Health Status
+
+```bash
+# Check all containers
+docker compose ps
+
+# Detailed inspect
+docker inspect llmgateway-gateway
+```
+
+## Troubleshooting
+
+### Service Won't Start
+
+```bash
+# Check logs
+docker compose logs <service-name>
+
+# Check environment variables
+docker compose config
+
+# Restart service
+docker compose restart <service-name>
+```
+
+### Database Connection Errors
+
+```bash
+# Verify postgres is running
+docker compose ps postgres
+
+# Check postgres logs
+docker compose logs postgres
+
+# Test connection
+docker exec llmgateway-postgres psql -U postgres -d llmgateway -c "SELECT 1;"
+```
+
+### Redis Connection Errors
+
+```bash
+# Verify redis is running
+docker compose ps redis
+
+# Test connection
+docker exec llmgateway-redis redis-cli -a $REDIS_PASSWORD ping
+```
+
+### Out of Memory
+
+```bash
+# Increase Docker memory limit
+# Docker Desktop: Settings -> Resources -> Memory
+
+# Or add to docker-compose.yml:
+services:
+  api:
+    mem_limit: 2g
+    mem_reservation: 1g
+```
+
+## Security
+
+### Network Isolation
+
+Services communicate on a private network:
+
+```yaml
+networks:
+  llmgateway-network:
+    driver: bridge
+    internal: true  # No external access
+```
+
+### Secrets Management
+
+Use Docker secrets instead of environment variables:
+
+```yaml
+services:
+  api:
+    secrets:
+      - postgres_password
+      - auth_secret
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  auth_secret:
+    file: ./secrets/auth_secret.txt
+```
+
+### SSL/TLS
+
+Use nginx as SSL termination:
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name llmgateway.yourdomain.com;
+  
+  ssl_certificate /etc/nginx/ssl/cert.pem;
+  ssl_certificate_key /etc/nginx/ssl/key.pem;
+  
+  location / {
+    proxy_pass http://ui:80;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+}
+```
+
+## Production Checklist
+
+- [ ] Use strong passwords for PostgreSQL and Redis
+- [ ] Set secure `AUTH_SECRET` (32+ random bytes)
+- [ ] Configure proper domain names and SSL
+- [ ] Set up regular database backups
+- [ ] Configure monitoring and alerting
+- [ ] Review and set resource limits
+- [ ] Enable health checks
+- [ ] Configure log rotation
+- [ ] Set up firewall rules
+- [ ] Review security settings

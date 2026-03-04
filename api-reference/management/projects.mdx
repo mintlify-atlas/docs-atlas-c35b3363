@@ -1,0 +1,420 @@
+---
+title: Projects
+description: Organize API keys and settings into logical projects
+---
+
+Projects help you organize your API keys, settings, and usage by application or environment. Each project belongs to an organization and can have its own configuration.
+
+## Create Project
+
+<ParamField body="name" type="string" required>
+  Project name (1-255 characters)
+</ParamField>
+
+<ParamField body="organizationId" type="string" required>
+  ID of the organization this project belongs to
+</ParamField>
+
+<ParamField body="cachingEnabled" type="boolean" default={false}>
+  Enable response caching
+</ParamField>
+
+<ParamField body="cacheDurationSeconds" type="number" default={60}>
+  Cache duration in seconds (10 - 31536000)
+</ParamField>
+
+<ParamField body="mode" type="'api-keys' | 'credits' | 'hybrid'" default="hybrid">
+  Project mode:
+  - `api-keys`: Use your own provider keys only
+  - `credits`: Use LLM Gateway credits only
+  - `hybrid`: Try provider keys first, fallback to credits
+</ParamField>
+
+<ResponseField name="project" type="object">
+  The created project object
+  
+  <Expandable title="Project Object">
+    <ResponseField name="id" type="string">
+      Unique identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Project name
+    </ResponseField>
+    
+    <ResponseField name="organizationId" type="string">
+      Parent organization ID
+    </ResponseField>
+    
+    <ResponseField name="cachingEnabled" type="boolean">
+      Whether caching is enabled
+    </ResponseField>
+    
+    <ResponseField name="cacheDurationSeconds" type="number">
+      Cache duration in seconds
+    </ResponseField>
+    
+    <ResponseField name="mode" type="'api-keys' | 'credits' | 'hybrid'">
+      Project mode
+    </ResponseField>
+    
+    <ResponseField name="status" type="'active' | 'inactive' | 'deleted'">
+      Current status
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="date">
+      Creation timestamp
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="date">
+      Last update timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.llmgateway.io/projects \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production",
+    "organizationId": "org_abc123",
+    "cachingEnabled": true,
+    "cacheDurationSeconds": 300,
+    "mode": "hybrid"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.llmgateway.io/projects', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_SESSION_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Production',
+    organizationId: 'org_abc123',
+    cachingEnabled: true,
+    cacheDurationSeconds: 300,
+    mode: 'hybrid'
+  })
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.llmgateway.io/projects',
+    headers={'Authorization': 'Bearer YOUR_SESSION_TOKEN'},
+    json={
+        'name': 'Production',
+        'organizationId': 'org_abc123',
+        'cachingEnabled': True,
+        'cacheDurationSeconds': 300,
+        'mode': 'hybrid'
+    }
+)
+
+project = response.json()['project']
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201 Response
+{
+  "project": {
+    "id": "proj_xyz789",
+    "name": "Production",
+    "organizationId": "org_abc123",
+    "cachingEnabled": true,
+    "cacheDurationSeconds": 300,
+    "mode": "hybrid",
+    "status": "active",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+</ResponseExample>
+
+<Note>
+Each organization has a limit of 10 projects by default. Contact support to increase this limit.
+</Note>
+
+---
+
+## Get Project
+
+Retrieve a single project by ID.
+
+<ParamField path="id" type="string" required>
+  Project ID
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/projects/proj_xyz789 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "project": {
+    "id": "proj_xyz789",
+    "name": "Production",
+    "organizationId": "org_abc123",
+    "cachingEnabled": true,
+    "cacheDurationSeconds": 300,
+    "mode": "hybrid",
+    "status": "active",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Update Project
+
+Update project settings. All fields are optional.
+
+<ParamField path="id" type="string" required>
+  Project ID
+</ParamField>
+
+<ParamField body="name" type="string">
+  New project name (1-255 characters)
+</ParamField>
+
+<ParamField body="cachingEnabled" type="boolean">
+  Enable or disable caching
+</ParamField>
+
+<ParamField body="cacheDurationSeconds" type="number">
+  Cache duration in seconds (10 - 31536000)
+</ParamField>
+
+<ParamField body="mode" type="'api-keys' | 'credits' | 'hybrid'">
+  Project mode
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X PATCH https://api.llmgateway.io/projects/proj_xyz789 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production v2",
+    "cachingEnabled": false
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.llmgateway.io/projects/proj_xyz789', {
+  method: 'PATCH',
+  headers: {
+    'Authorization': 'Bearer YOUR_SESSION_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Production v2',
+    cachingEnabled: false
+  })
+});
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "message": "Project settings updated successfully",
+  "project": {
+    "id": "proj_xyz789",
+    "name": "Production v2",
+    "organizationId": "org_abc123",
+    "cachingEnabled": false,
+    "cacheDurationSeconds": 300,
+    "mode": "hybrid",
+    "status": "active",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-16T14:20:00Z"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Delete Project
+
+Soft-delete a project. The project will be marked as deleted.
+
+<ParamField path="id" type="string" required>
+  Project ID
+</ParamField>
+
+<Warning>
+Only organization owners can delete projects. All API keys in the project will also be deleted.
+</Warning>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.llmgateway.io/projects/proj_xyz789 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "message": "Project deleted successfully"
+}
+```
+</ResponseExample>
+
+---
+
+## Project Modes
+
+Projects support three different modes for handling LLM requests:
+
+### API Keys Mode
+
+```json
+{
+  "mode": "api-keys"
+}
+```
+
+Use only your configured provider keys. Requests will fail if:
+- No provider key is configured for the requested provider
+- The provider key is inactive or deleted
+- The provider is unavailable
+
+**Best for:**
+- Organizations with existing provider relationships
+- Maximum control over which providers are used
+- Compliance requirements
+
+### Credits Mode
+
+```json
+{
+  "mode": "credits"
+}
+```
+
+Use only LLM Gateway credits. All requests are routed through Gateway-managed providers.
+
+**Best for:**
+- Getting started quickly
+- Pay-as-you-go pricing
+- Access to free models
+- Multi-provider routing without managing keys
+
+### Hybrid Mode (Recommended)
+
+```json
+{
+  "mode": "hybrid"
+}
+```
+
+Try your provider keys first, automatically fallback to credits if:
+- Provider key is not configured
+- Provider returns an error
+- Provider is unavailable
+
+**Best for:**
+- Maximum reliability and uptime
+- Cost optimization (use your keys when available)
+- Seamless failover
+
+<Tip>
+Hybrid mode provides the best balance of cost control and reliability. It's the recommended mode for production applications.
+</Tip>
+
+---
+
+## Caching
+
+Enable response caching to reduce costs and improve latency for repeated requests.
+
+### How It Works
+
+1. When a request is made, the Gateway checks if an identical request was cached recently
+2. If found, the cached response is returned immediately (no provider call)
+3. If not found, the request is sent to the provider and the response is cached
+
+### Cache Keys
+
+Requests are cached based on:
+- Model name
+- Messages/prompt
+- All parameters (temperature, max_tokens, etc.)
+- Tools and tool_choice (if applicable)
+
+### Configuration
+
+<ParamField body="cachingEnabled" type="boolean">
+  Enable or disable caching for the project
+</ParamField>
+
+<ParamField body="cacheDurationSeconds" type="number">
+  How long to cache responses (10 seconds to 1 year)
+</ParamField>
+
+<RequestExample>
+```bash Enable Caching
+curl -X PATCH https://api.llmgateway.io/projects/proj_xyz789 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cachingEnabled": true,
+    "cacheDurationSeconds": 3600
+  }'
+```
+</RequestExample>
+
+<Note>
+Cached requests are marked with `"cached": true` in activity logs and don't count toward your usage/costs.
+</Note>
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 403 Forbidden - Project Limit
+{
+  "message": "You have reached the limit of 10 projects. Contact us at contact@llmgateway.io to unlock more."
+}
+```
+
+```json 403 Forbidden - No Access
+{
+  "message": "You do not have access to this organization"
+}
+```
+
+```json 403 Forbidden - Delete Permission
+{
+  "message": "Only owners can delete projects"
+}
+```
+
+```json 404 Not Found
+{
+  "message": "Project not found"
+}
+```
+</ResponseExample>

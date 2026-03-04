@@ -1,0 +1,536 @@
+---
+title: Security
+description: Security features, best practices, and compliance for LLM Gateway Enterprise
+---
+
+## Overview
+
+LLM Gateway Enterprise includes comprehensive security features for protecting your data, controlling access, and maintaining compliance.
+
+## Authentication
+
+### Passkey Support
+
+WebAuthn/FIDO2 passwordless authentication:
+
+```typescript
+PASSKEY_RP_ID=yourdomain.com
+PASSKEY_RP_NAME=LLMGateway
+```
+
+**Benefits:**
+- Phishing resistant
+- No passwords to steal
+- Biometric authentication
+- Hardware security keys
+- Better user experience
+
+### OAuth Integration
+
+Supported providers:
+
+- **GitHub** - Enterprise SSO support
+- **Google** - Workspace integration
+
+```bash
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+### Session Management
+
+Secure session handling:
+
+```typescript
+AUTH_SECRET=generate-with-openssl-rand-base64-32
+COOKIE_DOMAIN=yourdomain.com
+```
+
+**Features:**
+- Encrypted session tokens
+- HTTP-only cookies
+- Secure flag in production
+- SameSite protection
+- Automatic expiration
+
+## API Key Security
+
+### Key Generation
+
+API keys are cryptographically secure:
+
+```typescript
+// Format: sk-proj_{project_id}_{random_32_bytes}
+const apiKey = generateApiKey(projectId);
+// Example: sk-proj_abc123_def456789...
+```
+
+### Key Storage
+
+- Keys hashed with bcrypt before storage
+- Original key shown once at creation
+- Only hash stored in database
+- Keys validated via constant-time comparison
+
+### Key Rotation
+
+```typescript
+// Rotate compromised key
+const newKey = await rotateApiKey({
+  organizationId: 'org_123',
+  keyId: 'key_456'
+});
+
+// Old key immediately invalidated
+```
+
+### Usage Limits
+
+Per-key usage limits:
+
+```typescript
+interface ApiKeyLimits {
+  usageLimit: number | null; // USD limit
+  rateLimit: number | null;  // requests per minute
+  allowedModels: string[];   // model whitelist
+  allowedIPs: string[];      // IP whitelist
+}
+```
+
+## Provider Key Security
+
+Enterprise feature for managing provider API keys:
+
+### Encryption
+
+All provider keys encrypted at rest:
+
+```typescript
+import { encrypt, decrypt } from '@/lib/encryption';
+
+// Encrypt before storage
+const encrypted = encrypt(providerApiKey, encryptionKey);
+
+// Decrypt for use
+const decrypted = decrypt(encrypted, encryptionKey);
+```
+
+Encryption details:
+- AES-256-GCM
+- Unique IV per key
+- Master key from environment
+- Key rotation supported
+
+### Access Control
+
+Only authorized services can access provider keys:
+
+- Gateway service: read-only access
+- API service: read/write access
+- UI: never has direct access
+- Keys transmitted over TLS only
+
+## Network Security
+
+### TLS/SSL
+
+All communication encrypted:
+
+```yaml
+# nginx configuration
+server {
+  listen 443 ssl http2;
+  ssl_certificate /path/to/cert.pem;
+  ssl_certificate_key /path/to/key.pem;
+  
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_ciphers HIGH:!aNULL:!MD5;
+  ssl_prefer_server_ciphers on;
+}
+```
+
+### CORS Configuration
+
+Strict CORS policy:
+
+```bash
+ORIGIN_URLS=https://yourdomain.com,https://app.yourdomain.com
+```
+
+CORS headers:
+- `Access-Control-Allow-Origin`: whitelisted origins only
+- `Access-Control-Allow-Credentials`: true
+- `Access-Control-Allow-Methods`: GET, POST, PUT, DELETE
+- `Access-Control-Max-Age`: 86400
+
+### Rate Limiting
+
+Protect against abuse:
+
+```typescript
+const rateLimit = {
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+};
+```
+
+## Data Security
+
+### Encryption at Rest
+
+Database encryption:
+
+- PostgreSQL: transparent data encryption (TDE)
+- Redis: encrypted backups
+- File storage: AES-256 encryption
+
+### Encryption in Transit
+
+All inter-service communication encrypted:
+
+```yaml
+# Service mesh with mTLS
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+    linkerd.io/inject: enabled
+```
+
+### Data Isolation
+
+Multi-tenancy security:
+
+- Row-level security (RLS) in PostgreSQL
+- Tenant ID in all queries
+- Separate encryption keys per tenant
+- No cross-tenant data leakage
+
+## Guardrails (Enterprise)
+
+Content filtering and security rules.
+
+### PII Detection
+
+Automatically detect and redact:
+
+- Email addresses
+- Phone numbers
+- Social Security Numbers
+- Credit card numbers
+- IP addresses
+- API keys
+
+```typescript
+import { checkGuardrails } from '@llmgateway/ee/guardrails';
+
+const result = await checkGuardrails({
+  messages: [{ role: 'user', content: 'My email is user@example.com' }],
+  rules: ['pii']
+});
+
+if (result.violations.length > 0) {
+  // PII detected
+  console.log(result.violations); // [{ rule: 'pii', type: 'email', ... }]
+  const redacted = result.redactedMessages; // PII removed
+}
+```
+
+### Jailbreak Detection
+
+Detect prompt injection attempts:
+
+- Instruction hijacking
+- Role confusion
+- Context smuggling
+- Delimiter injection
+
+### Secret Detection
+
+Prevent API key leakage:
+
+```typescript
+const secrets = [
+  /sk-[a-zA-Z0-9]{48}/,     // OpenAI
+  /sk-ant-[a-zA-Z0-9-]+/,   // Anthropic
+  /AIza[0-9A-Za-z-_]{35}/,  // Google
+];
+```
+
+### Custom Rules
+
+Create organization-specific rules:
+
+```typescript
+interface CustomRule {
+  id: string;
+  type: 'blocked_terms' | 'regex' | 'topic_restriction';
+  config: {
+    terms?: string[];      // Blocked words
+    pattern?: string;      // Regex pattern
+    topics?: string[];     // Allowed topics
+  };
+  action: 'block' | 'warn' | 'redact';
+  enabled: boolean;
+}
+```
+
+## Audit Logging
+
+Comprehensive audit trail for compliance.
+
+### What's Logged
+
+```typescript
+interface AuditLog {
+  id: string;
+  timestamp: Date;
+  userId: string;
+  organizationId: string;
+  action: AuditLogAction;
+  resourceType: AuditLogResourceType;
+  resourceId: string | null;
+  metadata: Record<string, unknown>;
+  ipAddress: string | null;
+  userAgent: string | null;
+  success: boolean;
+}
+```
+
+### Logged Actions
+
+- Authentication (login, logout, failed attempts)
+- API key operations (create, delete, rotate)
+- Organization changes (settings, billing, members)
+- Project operations (create, delete, update)
+- Provider key management
+- Subscription changes
+- Data exports
+- Admin actions
+
+### Retention
+
+Audit logs retained:
+
+- Free: 30 days
+- Pro: 90 days
+- Enterprise: Configurable (default 1 year)
+
+### Compliance
+
+Supports:
+
+- SOC 2 Type II
+- GDPR Article 30
+- HIPAA audit requirements
+- PCI DSS logging
+
+## Secrets Management
+
+### Environment Variables
+
+Secure secret handling:
+
+```bash
+# Generate secure secret
+openssl rand -base64 32
+
+# Never commit to version control
+echo ".env" >> .gitignore
+```
+
+### Docker Secrets
+
+```yaml
+services:
+  api:
+    secrets:
+      - postgres_password
+      - auth_secret
+
+secrets:
+  postgres_password:
+    external: true
+  auth_secret:
+    external: true
+```
+
+### Kubernetes Secrets
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: llmgateway-secrets
+type: Opaque
+data:
+  postgres-password: <base64-encoded>
+  auth-secret: <base64-encoded>
+```
+
+### External Secrets
+
+Integrations:
+
+- **AWS Secrets Manager**
+- **Google Secret Manager**
+- **Azure Key Vault**
+- **HashiCorp Vault**
+
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: aws-secrets
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: us-east-1
+```
+
+## Vulnerability Management
+
+### Dependency Scanning
+
+Automated security scanning:
+
+```bash
+# Audit npm dependencies
+pnpm audit
+
+# Fix vulnerabilities
+pnpm audit --fix
+
+# Generate report
+pnpm audit --json > audit-report.json
+```
+
+### Container Scanning
+
+```bash
+# Scan Docker images
+docker scan ghcr.io/theopenco/llmgateway-api:latest
+
+# Use Trivy
+trivy image ghcr.io/theopenco/llmgateway-api:latest
+```
+
+### Penetration Testing
+
+Enterprise customers receive:
+
+- Annual penetration tests
+- Vulnerability reports
+- Remediation guidance
+- Re-testing after fixes
+
+## Compliance
+
+### SOC 2 Type II
+
+- Security controls documented
+- Audit logs maintained
+- Access controls enforced
+- Incident response plan
+- Regular security reviews
+
+### GDPR
+
+- Data processing agreement
+- Right to access
+- Right to deletion
+- Data portability
+- Privacy by design
+
+### HIPAA
+
+- Business associate agreement
+- Encrypted data at rest and in transit
+- Audit logging
+- Access controls
+- Incident response
+
+### PCI DSS
+
+- No credit card storage (Stripe handles)
+- Encrypted transmission
+- Access logging
+- Security policies
+- Regular testing
+
+## Incident Response
+
+### Security Contact
+
+Report vulnerabilities:
+
+- Email: security@llmgateway.io
+- PGP key: Available on request
+- Response SLA: 24 hours
+
+### Incident Workflow
+
+1. **Detection** - Automated alerts or manual report
+2. **Containment** - Isolate affected systems
+3. **Investigation** - Determine scope and impact
+4. **Remediation** - Apply fixes and patches
+5. **Communication** - Notify affected customers
+6. **Post-mortem** - Document lessons learned
+
+### Breach Notification
+
+Customers notified within:
+
+- 24 hours: Critical breaches
+- 72 hours: GDPR requirement
+- Regular updates until resolved
+
+## Security Checklist
+
+### Production Deployment
+
+- [ ] Use strong passwords (16+ characters)
+- [ ] Enable TLS/SSL everywhere
+- [ ] Set secure `AUTH_SECRET`
+- [ ] Configure CORS properly
+- [ ] Enable rate limiting
+- [ ] Use secrets management
+- [ ] Enable audit logging
+- [ ] Configure guardrails
+- [ ] Set up monitoring
+- [ ] Document security policies
+- [ ] Train team on security
+- [ ] Regular security audits
+
+### API Key Management
+
+- [ ] Rotate keys regularly
+- [ ] Set usage limits
+- [ ] Monitor for anomalies
+- [ ] Revoke unused keys
+- [ ] Never commit keys to Git
+- [ ] Use separate keys per environment
+
+### Access Control
+
+- [ ] Follow least privilege principle
+- [ ] Review permissions quarterly
+- [ ] Enable 2FA for admins
+- [ ] Audit user access
+- [ ] Remove inactive users
+
+## Security Updates
+
+Stay informed about security:
+
+- Subscribe to security newsletter
+- Monitor GitHub security advisories
+- Follow @llmgateway on Twitter
+- Join community Slack channel
+- Review CHANGELOG for security fixes

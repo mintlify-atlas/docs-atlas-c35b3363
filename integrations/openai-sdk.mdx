@@ -1,0 +1,382 @@
+---
+title: OpenAI SDK
+description: Integrate LLM Gateway with the official OpenAI SDK for Python and Node.js
+---
+
+# OpenAI SDK Integration
+
+The OpenAI SDK provides official client libraries for Python and Node.js. Since LLM Gateway is fully OpenAI-compatible, you can use these SDKs with minimal configuration changes.
+
+## Quick Start
+
+To use LLM Gateway with the OpenAI SDK, you only need to:
+
+1. Set the base URL to `https://api.llmgateway.io/v1`
+2. Use your LLM Gateway API key for authentication
+3. Specify models using the format `provider/model` or use `auto` for automatic routing
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key"
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-5",  # or "auto" for automatic routing
+        messages=[
+            {"role": "user", "content": "Hello!"}
+        ]
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```typescript
+    import OpenAI from 'openai';
+
+    const client = new OpenAI({
+        baseURL: 'https://api.llmgateway.io/v1',
+        apiKey: 'your-llmgateway-api-key'
+    });
+
+    const response = await client.chat.completions.create({
+        model: 'gpt-5',  // or 'auto' for automatic routing
+        messages: [
+            { role: 'user', content: 'Hello!' }
+        ]
+    });
+
+    console.log(response.choices[0].message.content);
+    ```
+  </Tab>
+</Tabs>
+
+## Installation
+
+<Tabs>
+  <Tab title="Python">
+    <CodeGroup>
+    ```bash pip
+    pip install openai
+    ```
+
+    ```bash poetry
+    poetry add openai
+    ```
+    </CodeGroup>
+  </Tab>
+  <Tab title="Node.js">
+    <CodeGroup>
+    ```bash npm
+    npm install openai
+    ```
+
+    ```bash yarn
+    yarn add openai
+    ```
+
+    ```bash pnpm
+    pnpm add openai
+    ```
+    </CodeGroup>
+  </Tab>
+</Tabs>
+
+## Before and After Comparison
+
+### Python
+
+<CodeGroup>
+```python Before (OpenAI)
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-..."  # OpenAI API key
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
+```python After (LLM Gateway)
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.llmgateway.io/v1",  # Add this line
+    api_key="your-llmgateway-api-key"  # Use LLM Gateway API key
+)
+
+response = client.chat.completions.create(
+    model="gpt-5",  # Use LLM Gateway model names
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+</CodeGroup>
+
+### Node.js
+
+<CodeGroup>
+```typescript Before (OpenAI)
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+    apiKey: 'sk-...'  // OpenAI API key
+});
+
+const response = await client.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: 'Hello!' }]
+});
+```
+
+```typescript After (LLM Gateway)
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+    baseURL: 'https://api.llmgateway.io/v1',  // Add this line
+    apiKey: 'your-llmgateway-api-key'  // Use LLM Gateway API key
+});
+
+const response = await client.chat.completions.create({
+    model: 'gpt-5',  // Use LLM Gateway model names
+    messages: [{ role: 'user', content: 'Hello!' }]
+});
+```
+</CodeGroup>
+
+## Streaming
+
+LLM Gateway fully supports streaming responses:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key"
+    )
+
+    stream = client.chat.completions.create(
+        model="gpt-5",
+        messages=[{"role": "user", "content": "Write a story"}],
+        stream=True
+    )
+
+    for chunk in stream:
+        if chunk.choices[0].delta.content:
+            print(chunk.choices[0].delta.content, end="")
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```typescript
+    import OpenAI from 'openai';
+
+    const client = new OpenAI({
+        baseURL: 'https://api.llmgateway.io/v1',
+        apiKey: 'your-llmgateway-api-key'
+    });
+
+    const stream = await client.chat.completions.create({
+        model: 'gpt-5',
+        messages: [{ role: 'user', content: 'Write a story' }],
+        stream: true
+    });
+
+    for await (const chunk of stream) {
+        if (chunk.choices[0]?.delta?.content) {
+            process.stdout.write(chunk.choices[0].delta.content);
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Function Calling (Tools)
+
+LLM Gateway supports OpenAI's function calling API:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key"
+    )
+
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get the current weather",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "City name"
+                        }
+                    },
+                    "required": ["location"]
+                }
+            }
+        }
+    ]
+
+    response = client.chat.completions.create(
+        model="gpt-5",
+        messages=[{"role": "user", "content": "What's the weather in Boston?"}],
+        tools=tools
+    )
+
+    print(response.choices[0].message.tool_calls)
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```typescript
+    import OpenAI from 'openai';
+
+    const client = new OpenAI({
+        baseURL: 'https://api.llmgateway.io/v1',
+        apiKey: 'your-llmgateway-api-key'
+    });
+
+    const tools = [
+        {
+            type: 'function',
+            function: {
+                name: 'get_weather',
+                description: 'Get the current weather',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        location: {
+                            type: 'string',
+                            description: 'City name'
+                        }
+                    },
+                    required: ['location']
+                }
+            }
+        }
+    ];
+
+    const response = await client.chat.completions.create({
+        model: 'gpt-5',
+        messages: [{ role: 'user', content: 'What\'s the weather in Boston?' }],
+        tools
+    });
+
+    console.log(response.choices[0].message.tool_calls);
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+You can use environment variables instead of hardcoding credentials:
+
+<Tabs>
+  <Tab title="Python">
+    ```bash .env
+    OPENAI_BASE_URL=https://api.llmgateway.io/v1
+    OPENAI_API_KEY=your-llmgateway-api-key
+    ```
+
+    ```python
+    from openai import OpenAI
+
+    # Automatically reads OPENAI_BASE_URL and OPENAI_API_KEY
+    client = OpenAI()
+
+    response = client.chat.completions.create(
+        model="gpt-5",
+        messages=[{"role": "user", "content": "Hello!"}]
+    )
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```bash .env
+    OPENAI_BASE_URL=https://api.llmgateway.io/v1
+    OPENAI_API_KEY=your-llmgateway-api-key
+    ```
+
+    ```typescript
+    import OpenAI from 'openai';
+
+    // Automatically reads OPENAI_BASE_URL and OPENAI_API_KEY
+    const client = new OpenAI();
+
+    const response = await client.chat.completions.create({
+        model: 'gpt-5',
+        messages: [{ role: 'user', content: 'Hello!' }]
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Model Selection
+
+LLM Gateway supports multiple ways to specify models:
+
+```python
+# Use LLM Gateway's model names (auto-routing across providers)
+model="gpt-5"  # Routes to best available provider
+
+# Use automatic routing
+model="auto"  # Automatically selects cheapest model
+
+# Specify a provider
+model="openai/gpt-4o"  # Use OpenAI specifically
+model="anthropic/claude-3-5-sonnet-20241022"  # Use Anthropic
+```
+
+## Advanced Features
+
+### JSON Output
+
+Force the model to output valid JSON:
+
+```python
+response = client.chat.completions.create(
+    model="gpt-5",
+    messages=[{"role": "user", "content": "Generate a user profile"}],
+    response_format={"type": "json_object"}
+)
+```
+
+### Reasoning Models
+
+Control reasoning effort for models like o1:
+
+```python
+response = client.chat.completions.create(
+    model="gpt-5",
+    messages=[{"role": "user", "content": "Solve this complex problem"}],
+    reasoning_effort="high"  # Options: minimal, low, medium, high, xhigh
+)
+```
+
+## Caveats and Limitations
+
+- **Model Names**: Use LLM Gateway's model naming scheme (e.g., `gpt-5` instead of `gpt-4o`)
+- **Authentication**: Use your LLM Gateway API key, not provider-specific keys
+- **Base URL**: Always set `base_url` (Python) or `baseURL` (Node.js) to `https://api.llmgateway.io/v1`
+- **Response Metadata**: LLM Gateway adds extra metadata in the response (provider used, routing info, costs)
+
+## Next Steps
+
+- [View available models](/api-reference/gateway/models)
+- [Learn about automatic routing](/features/multi-provider)
+- [Configure provider preferences](/api-reference/management/provider-keys)

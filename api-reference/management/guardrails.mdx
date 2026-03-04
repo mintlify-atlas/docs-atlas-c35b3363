@@ -1,0 +1,881 @@
+---
+title: Guardrails
+description: Configure content safety and security rules (Enterprise)
+---
+
+<Warning>
+Guardrails are an **Enterprise-only** feature. Contact sales@llmgateway.io to upgrade.
+</Warning>
+
+Guardrails provide content safety, security, and compliance controls for your LLM applications. Detect and block prompt injections, PII, secrets, and custom content violations.
+
+## Get Guardrail Configuration
+
+Retrieve the guardrail configuration for an organization.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ResponseField name="config" type="object | null">
+  Guardrail configuration object (null if not configured)
+  
+  <Expandable title="Configuration Object">
+    <ResponseField name="id" type="string">
+      Configuration ID
+    </ResponseField>
+    
+    <ResponseField name="organizationId" type="string">
+      Organization ID
+    </ResponseField>
+    
+    <ResponseField name="enabled" type="boolean">
+      Whether guardrails are enabled
+    </ResponseField>
+    
+    <ResponseField name="systemRules" type="object | null">
+      System rule configurations
+      
+      <Expandable>
+        <ResponseField name="prompt_injection" type="object">
+          <Expandable>
+            <ResponseField name="enabled" type="boolean">Enable detection</ResponseField>
+            <ResponseField name="action" type="'block' | 'redact' | 'warn' | 'allow'">Action to take</ResponseField>
+          </Expandable>
+        </ResponseField>
+        
+        <ResponseField name="jailbreak" type="object">
+          Jailbreak attempt detection
+        </ResponseField>
+        
+        <ResponseField name="pii_detection" type="object">
+          PII (Personally Identifiable Information) detection
+        </ResponseField>
+        
+        <ResponseField name="secrets" type="object">
+          API keys and secrets detection
+        </ResponseField>
+        
+        <ResponseField name="file_types" type="object">
+          File type restrictions
+        </ResponseField>
+        
+        <ResponseField name="document_leakage" type="object">
+          Document leakage prevention
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="maxFileSizeMb" type="number">
+      Maximum file size in MB
+    </ResponseField>
+    
+    <ResponseField name="allowedFileTypes" type="string[]">
+      Allowed MIME types for file uploads
+    </ResponseField>
+    
+    <ResponseField name="piiAction" type="'block' | 'redact' | 'warn' | 'allow' | null">
+      Default action for PII detection
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="date">
+      Configuration creation date
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="date">
+      Last update date
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/guardrails/config/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "id": "gc_xyz789",
+  "organizationId": "org_abc123",
+  "enabled": true,
+  "systemRules": {
+    "prompt_injection": {
+      "enabled": true,
+      "action": "block"
+    },
+    "jailbreak": {
+      "enabled": true,
+      "action": "block"
+    },
+    "pii_detection": {
+      "enabled": true,
+      "action": "redact"
+    },
+    "secrets": {
+      "enabled": true,
+      "action": "block"
+    },
+    "file_types": {
+      "enabled": true,
+      "action": "block"
+    },
+    "document_leakage": {
+      "enabled": false,
+      "action": "warn"
+    }
+  },
+  "maxFileSizeMb": 10,
+  "allowedFileTypes": [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp"
+  ],
+  "piiAction": "redact",
+  "createdAt": "2024-01-10T10:00:00Z",
+  "updatedAt": "2024-01-15T14:30:00Z"
+}
+```
+</ResponseExample>
+
+---
+
+## Update Guardrail Configuration
+
+Create or update the guardrail configuration.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField body="enabled" type="boolean">
+  Enable or disable all guardrails
+</ParamField>
+
+<ParamField body="systemRules" type="object">
+  System rule configurations
+  
+  <Expandable>
+    <ParamField body="prompt_injection" type="object">
+      <Expandable>
+        <ParamField body="enabled" type="boolean">Enable detection</ParamField>
+        <ParamField body="action" type="'block' | 'redact' | 'warn' | 'allow'">Action</ParamField>
+      </Expandable>
+    </ParamField>
+    <ParamField body="jailbreak" type="object">Jailbreak detection config</ParamField>
+    <ParamField body="pii_detection" type="object">PII detection config</ParamField>
+    <ParamField body="secrets" type="object">Secrets detection config</ParamField>
+    <ParamField body="file_types" type="object">File type config</ParamField>
+    <ParamField body="document_leakage" type="object">Document leakage config</ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="maxFileSizeMb" type="number">
+  Maximum file size in MB
+</ParamField>
+
+<ParamField body="allowedFileTypes" type="string[]">
+  Array of allowed MIME types
+</ParamField>
+
+<ParamField body="piiAction" type="'block' | 'redact' | 'warn' | 'allow'">
+  Default PII action
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X PUT https://api.llmgateway.io/guardrails/config/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "systemRules": {
+      "prompt_injection": {
+        "enabled": true,
+        "action": "block"
+      },
+      "pii_detection": {
+        "enabled": true,
+        "action": "redact"
+      }
+    },
+    "maxFileSizeMb": 20,
+    "piiAction": "redact"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.llmgateway.io/guardrails/config/org_abc123',
+  {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer YOUR_SESSION_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      enabled: true,
+      systemRules: {
+        prompt_injection: { enabled: true, action: 'block' },
+        pii_detection: { enabled: true, action: 'redact' }
+      },
+      maxFileSizeMb: 20
+    })
+  }
+);
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "id": "gc_xyz789",
+  "organizationId": "org_abc123",
+  "enabled": true,
+  "systemRules": {
+    "prompt_injection": {
+      "enabled": true,
+      "action": "block"
+    },
+    "jailbreak": {
+      "enabled": true,
+      "action": "block"
+    },
+    "pii_detection": {
+      "enabled": true,
+      "action": "redact"
+    },
+    "secrets": {
+      "enabled": true,
+      "action": "block"
+    },
+    "file_types": {
+      "enabled": true,
+      "action": "block"
+    },
+    "document_leakage": {
+      "enabled": false,
+      "action": "warn"
+    }
+  },
+  "maxFileSizeMb": 20,
+  "allowedFileTypes": [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp"
+  ],
+  "piiAction": "redact",
+  "createdAt": "2024-01-10T10:00:00Z",
+  "updatedAt": "2024-01-16T09:15:00Z"
+}
+```
+</ResponseExample>
+
+---
+
+## Reset Configuration
+
+Reset guardrail configuration to defaults.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.llmgateway.io/guardrails/config/org_abc123/reset \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+---
+
+## List Custom Rules
+
+Retrieve all custom guardrail rules for an organization.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ResponseField name="rules" type="array">
+  Array of custom rule objects
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/guardrails/rules/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "rules": [
+    {
+      "id": "rule_123",
+      "organizationId": "org_abc123",
+      "name": "Block Competitor Names",
+      "type": "blocked_terms",
+      "config": {
+        "type": "blocked_terms",
+        "terms": ["CompetitorA", "CompetitorB"],
+        "matchType": "contains",
+        "caseSensitive": false
+      },
+      "priority": 100,
+      "enabled": true,
+      "action": "block",
+      "createdAt": "2024-01-10T10:00:00Z",
+      "updatedAt": "2024-01-10T10:00:00Z"
+    },
+    {
+      "id": "rule_456",
+      "organizationId": "org_abc123",
+      "name": "Credit Card Pattern",
+      "type": "custom_regex",
+      "config": {
+        "type": "custom_regex",
+        "pattern": "\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b"
+      },
+      "priority": 90,
+      "enabled": true,
+      "action": "redact",
+      "createdAt": "2024-01-12T14:30:00Z",
+      "updatedAt": "2024-01-12T14:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Create Custom Rule
+
+Create a new custom guardrail rule.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Rule name
+</ParamField>
+
+<ParamField body="type" type="'blocked_terms' | 'custom_regex' | 'topic_restriction'" required>
+  Rule type
+</ParamField>
+
+<ParamField body="config" type="object" required>
+  Rule configuration (varies by type)
+</ParamField>
+
+<ParamField body="priority" type="number" default={100}>
+  Rule priority (higher = checked first)
+</ParamField>
+
+<ParamField body="enabled" type="boolean" default={true}>
+  Enable the rule
+</ParamField>
+
+<ParamField body="action" type="'block' | 'redact' | 'warn' | 'allow'" default="block">
+  Action to take on violation
+</ParamField>
+
+### Rule Types
+
+#### Blocked Terms
+
+Block or redact specific words/phrases:
+
+```json
+{
+  "type": "blocked_terms",
+  "config": {
+    "type": "blocked_terms",
+    "terms": ["badword1", "badword2"],
+    "matchType": "contains",
+    "caseSensitive": false
+  }
+}
+```
+
+**Match Types:**
+- `exact`: Exact word match
+- `contains`: Substring match
+- `regex`: Regular expression pattern
+
+#### Custom Regex
+
+Match content using regex patterns:
+
+```json
+{
+  "type": "custom_regex",
+  "config": {
+    "type": "custom_regex",
+    "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+  }
+}
+```
+
+#### Topic Restriction
+
+Block or allow specific topics:
+
+```json
+{
+  "type": "topic_restriction",
+  "config": {
+    "type": "topic_restriction",
+    "blockedTopics": ["violence", "illegal activities"],
+    "allowedTopics": ["technology", "education"]
+  }
+}
+```
+
+<RequestExample>
+```bash cURL - Blocked Terms
+curl -X POST https://api.llmgateway.io/guardrails/rules/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Block Profanity",
+    "type": "blocked_terms",
+    "config": {
+      "type": "blocked_terms",
+      "terms": ["badword1", "badword2"],
+      "matchType": "contains",
+      "caseSensitive": false
+    },
+    "priority": 100,
+    "action": "block"
+  }'
+```
+
+```bash cURL - Custom Regex
+curl -X POST https://api.llmgateway.io/guardrails/rules/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "SSN Pattern",
+    "type": "custom_regex",
+    "config": {
+      "type": "custom_regex",
+      "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+    },
+    "priority": 90,
+    "action": "redact"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "id": "rule_789",
+  "organizationId": "org_abc123",
+  "name": "Block Profanity",
+  "type": "blocked_terms",
+  "config": {
+    "type": "blocked_terms",
+    "terms": ["badword1", "badword2"],
+    "matchType": "contains",
+    "caseSensitive": false
+  },
+  "priority": 100,
+  "enabled": true,
+  "action": "block",
+  "createdAt": "2024-01-16T10:00:00Z",
+  "updatedAt": "2024-01-16T10:00:00Z"
+}
+```
+</ResponseExample>
+
+---
+
+## Update Custom Rule
+
+Update an existing custom rule.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField path="ruleId" type="string" required>
+  Rule ID
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X PATCH https://api.llmgateway.io/guardrails/rules/org_abc123/rule_789 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": false,
+    "priority": 110
+  }'
+```
+</RequestExample>
+
+---
+
+## Delete Custom Rule
+
+Delete a custom guardrail rule.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField path="ruleId" type="string" required>
+  Rule ID
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.llmgateway.io/guardrails/rules/org_abc123/rule_789 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "success": true
+}
+```
+</ResponseExample>
+
+---
+
+## List Violations
+
+Retrieve guardrail violations with filtering and pagination.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField query="cursor" type="string">
+  Pagination cursor from previous response
+</ParamField>
+
+<ParamField query="limit" type="number" default={50}>
+  Number of results per page (1-100)
+</ParamField>
+
+<ParamField query="startDate" type="string">
+  Filter by start date (ISO 8601 with timezone)
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  Filter by end date (ISO 8601 with timezone)
+</ParamField>
+
+<ParamField query="actionTaken" type="'blocked' | 'redacted' | 'warned'">
+  Filter by action taken
+</ParamField>
+
+<ParamField query="ruleId" type="string">
+  Filter by specific rule ID
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl "https://api.llmgateway.io/guardrails/violations/org_abc123?limit=50&actionTaken=blocked" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "violations": [
+    {
+      "id": "vio_123",
+      "organizationId": "org_abc123",
+      "logId": "log_456",
+      "ruleId": "system:prompt_injection",
+      "ruleName": "Prompt Injection Detection",
+      "category": "injection",
+      "actionTaken": "blocked",
+      "matchedPattern": "ignore previous instructions",
+      "matchedContent": "Ignore previous instructions and...",
+      "contentHash": "abc123def456",
+      "apiKeyId": "key_xyz789",
+      "model": "gpt-4o",
+      "createdAt": "2024-01-16T10:30:00Z"
+    }
+  ],
+  "pagination": {
+    "nextCursor": "vio_124",
+    "hasMore": true,
+    "limit": 50
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Get Violation Statistics
+
+Retrieve aggregated violation statistics.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField query="days" type="number" default={7}>
+  Number of days to analyze (1-90)
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl "https://api.llmgateway.io/guardrails/stats/org_abc123?days=30" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "blocked": 45,
+  "redacted": 23,
+  "warned": 12,
+  "total": 80
+}
+```
+</ResponseExample>
+
+---
+
+## Test Content
+
+Test content against guardrail rules without logging violations.
+
+<ParamField path="organizationId" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField body="content" type="string" required>
+  Content to test
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.llmgateway.io/guardrails/test/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "This is test content with a badword1 in it"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "passed": false,
+  "blocked": true,
+  "violations": [
+    {
+      "ruleId": "rule_789",
+      "ruleName": "Block Profanity",
+      "category": "blocked_terms",
+      "action": "block",
+      "matchedPattern": "badword1",
+      "matchedContent": "badword1"
+    }
+  ],
+  "rulesChecked": 5
+}
+```
+</ResponseExample>
+
+---
+
+## List System Rules
+
+Get information about available system rules.
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/guardrails/system-rules \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "rules": [
+    {
+      "id": "system:prompt_injection",
+      "name": "Prompt Injection Detection",
+      "category": "injection",
+      "defaultEnabled": true,
+      "defaultAction": "block"
+    },
+    {
+      "id": "system:jailbreak",
+      "name": "Jailbreak Prevention",
+      "category": "jailbreak",
+      "defaultEnabled": true,
+      "defaultAction": "block"
+    },
+    {
+      "id": "system:pii_detection",
+      "name": "PII Detection",
+      "category": "pii",
+      "defaultEnabled": true,
+      "defaultAction": "redact"
+    },
+    {
+      "id": "system:secrets",
+      "name": "Secrets Detection",
+      "category": "secrets",
+      "defaultEnabled": true,
+      "defaultAction": "block"
+    },
+    {
+      "id": "system:file_types",
+      "name": "File Type Restrictions",
+      "category": "files",
+      "defaultEnabled": true,
+      "defaultAction": "block"
+    },
+    {
+      "id": "system:document_leakage",
+      "name": "Document Leakage Prevention",
+      "category": "document_leakage",
+      "defaultEnabled": false,
+      "defaultAction": "warn"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Guardrail Actions
+
+Each rule can have one of four actions:
+
+### Block
+
+```json
+{"action": "block"}
+```
+
+Reject the request entirely. Returns a 400 error.
+
+**Use for:**
+- Security threats (prompt injection, jailbreaks)
+- Policy violations
+- Prohibited content
+
+### Redact
+
+```json
+{"action": "redact"}
+```
+
+Remove/mask the matched content and continue processing.
+
+**Use for:**
+- PII (emails, phone numbers, SSNs)
+- Sensitive data
+- Credit card numbers
+
+### Warn
+
+```json
+{"action": "warn"}
+```
+
+Log the violation but allow the request to proceed.
+
+**Use for:**
+- Monitoring suspicious patterns
+- Low-risk content
+- Testing new rules
+
+### Allow
+
+```json
+{"action": "allow"}
+```
+
+Explicitly allow content (for whitelisting).
+
+**Use for:**
+- Overriding other rules
+- Approved exceptions
+- False positive handling
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 403 Forbidden - Not Enterprise
+{
+  "message": "Guardrails require an enterprise plan"
+}
+```
+
+```json 403 Forbidden - Wrong Role
+{
+  "message": "Only owners and admins can manage guardrails"
+}
+```
+
+```json 404 Not Found
+{
+  "message": "Rule not found"
+}
+```
+</ResponseExample>
+
+---
+
+## Best Practices
+
+<Check>
+**Start Conservative**
+- Enable core system rules (prompt injection, jailbreak, secrets)
+- Use "warn" action initially to monitor false positives
+- Gradually tighten rules based on violation patterns
+</Check>
+
+<Check>
+**Layer Your Defense**
+- Combine system rules with custom rules
+- Use both blocking and redaction
+- Set appropriate priorities for rule evaluation
+</Check>
+
+<Check>
+**Monitor and Iterate**
+- Review violation logs regularly
+- Test new rules before enabling
+- Adjust actions based on false positive rates
+- Use test endpoint before deploying changes
+</Check>
+
+<Check>
+**Performance Impact**
+- Guardrails add 50-200ms latency per request
+- More rules = higher latency
+- Prioritize critical rules (higher priority number)
+- Disable unused rules
+</Check>

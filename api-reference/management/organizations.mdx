@@ -1,0 +1,573 @@
+---
+title: Organizations
+description: Manage organization settings, billing, and team members
+---
+
+Organizations are the top-level entity in LLM Gateway. Each organization can have multiple projects, team members, and billing settings.
+
+## List Organizations
+
+Retrieve all organizations you belong to.
+
+<ResponseField name="organizations" type="array">
+  Array of organization objects you have access to
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/organization \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.llmgateway.io/organization', {
+  headers: {
+    'Authorization': 'Bearer YOUR_SESSION_TOKEN'
+  }
+});
+
+const data = await response.json();
+console.log('Organizations:', data.organizations);
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.llmgateway.io/organization',
+    headers={'Authorization': 'Bearer YOUR_SESSION_TOKEN'}
+)
+
+organizations = response.json()['organizations']
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "organizations": [
+    {
+      "id": "org_abc123",
+      "name": "Acme Corp",
+      "billingEmail": "billing@acme.com",
+      "billingCompany": "Acme Corporation",
+      "billingAddress": "123 Main St, San Francisco, CA 94105",
+      "billingTaxId": "US123456789",
+      "billingNotes": null,
+      "credits": "50.00",
+      "plan": "pro",
+      "planExpiresAt": "2024-12-31T23:59:59Z",
+      "retentionLevel": "retain",
+      "status": "active",
+      "autoTopUpEnabled": true,
+      "autoTopUpThreshold": "10.00",
+      "autoTopUpAmount": "50.00",
+      "referralEarnings": "5.00",
+      "isPersonal": false,
+      "devPlan": "none",
+      "devPlanCreditsUsed": "0",
+      "devPlanCreditsLimit": "0",
+      "devPlanBillingCycleStart": null,
+      "devPlanExpiresAt": null,
+      "devPlanAllowAllModels": false,
+      "createdAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Create Organization
+
+Create a new organization. You'll be set as the owner.
+
+<ParamField body="name" type="string" required>
+  Organization name (1-255 characters)
+</ParamField>
+
+<ResponseField name="organization" type="object">
+  The created organization
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.llmgateway.io/organization \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My New Org"}'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "organization": {
+    "id": "org_new123",
+    "name": "My New Org",
+    "billingEmail": "user@example.com",
+    "billingCompany": null,
+    "billingAddress": null,
+    "billingTaxId": null,
+    "billingNotes": null,
+    "credits": "0",
+    "plan": "free",
+    "planExpiresAt": null,
+    "retentionLevel": "none",
+    "status": "active",
+    "autoTopUpEnabled": false,
+    "autoTopUpThreshold": "10",
+    "autoTopUpAmount": "10",
+    "referralEarnings": "0",
+    "isPersonal": false,
+    "devPlan": "none",
+    "devPlanCreditsUsed": "0",
+    "devPlanCreditsLimit": "0",
+    "devPlanBillingCycleStart": null,
+    "devPlanExpiresAt": null,
+    "devPlanAllowAllModels": false,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+</ResponseExample>
+
+<Note>
+A default project named "Default Project" is automatically created when you create an organization.
+</Note>
+
+---
+
+## Update Organization
+
+Update organization settings. All fields are optional.
+
+<ParamField path="id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField body="name" type="string">
+  Organization name (1-255 characters)
+</ParamField>
+
+<ParamField body="billingEmail" type="string">
+  Billing email address
+</ParamField>
+
+<ParamField body="billingCompany" type="string">
+  Company name for invoices
+</ParamField>
+
+<ParamField body="billingAddress" type="string">
+  Billing address
+</ParamField>
+
+<ParamField body="billingTaxId" type="string">
+  Tax ID or VAT number
+</ParamField>
+
+<ParamField body="billingNotes" type="string">
+  Additional billing notes
+</ParamField>
+
+<ParamField body="retentionLevel" type="'retain' | 'none'">
+  Data retention level:
+  - `retain`: Keep logs for 90 days (Pro/Enterprise)
+  - `none`: Keep logs for 3 days (Free)
+</ParamField>
+
+<ParamField body="autoTopUpEnabled" type="boolean">
+  Enable automatic credit top-up
+</ParamField>
+
+<ParamField body="autoTopUpThreshold" type="number">
+  Credit balance threshold for auto top-up (min: $5)
+</ParamField>
+
+<ParamField body="autoTopUpAmount" type="number">
+  Amount to add when auto top-up triggers (min: $10)
+</ParamField>
+
+<Warning>
+Only organization owners can update billing and policy settings.
+</Warning>
+
+<RequestExample>
+```bash cURL
+curl -X PATCH https://api.llmgateway.io/organization/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Corp Updated",
+    "billingEmail": "billing@acme.com",
+    "billingCompany": "Acme Corporation",
+    "billingAddress": "456 New St, SF, CA 94105",
+    "billingTaxId": "US987654321",
+    "autoTopUpEnabled": true,
+    "autoTopUpThreshold": 20,
+    "autoTopUpAmount": 100
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.llmgateway.io/organization/org_abc123', {
+  method: 'PATCH',
+  headers: {
+    'Authorization': 'Bearer YOUR_SESSION_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    autoTopUpEnabled: true,
+    autoTopUpThreshold: 20,
+    autoTopUpAmount: 100
+  })
+});
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "message": "Organization updated successfully",
+  "organization": {
+    "id": "org_abc123",
+    "name": "Acme Corp Updated",
+    "billingEmail": "billing@acme.com",
+    "billingCompany": "Acme Corporation",
+    "billingAddress": "456 New St, SF, CA 94105",
+    "billingTaxId": "US987654321",
+    "billingNotes": null,
+    "credits": "50.00",
+    "plan": "pro",
+    "planExpiresAt": "2024-12-31T23:59:59Z",
+    "retentionLevel": "retain",
+    "status": "active",
+    "autoTopUpEnabled": true,
+    "autoTopUpThreshold": "20",
+    "autoTopUpAmount": "100",
+    "referralEarnings": "5.00",
+    "isPersonal": false,
+    "devPlan": "none",
+    "devPlanCreditsUsed": "0",
+    "devPlanCreditsLimit": "0",
+    "devPlanBillingCycleStart": null,
+    "devPlanExpiresAt": null,
+    "devPlanAllowAllModels": false,
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-16T14:20:00Z"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Delete Organization
+
+Soft-delete an organization. The organization will be marked as deleted.
+
+<ParamField path="id" type="string" required>
+  Organization ID
+</ParamField>
+
+<Warning>
+Deleting an organization will also delete all projects, API keys, and associated data. This action cannot be undone.
+</Warning>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.llmgateway.io/organization/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "message": "Organization deleted successfully"
+}
+```
+</ResponseExample>
+
+---
+
+## List Projects
+
+Retrieve all projects for an organization.
+
+<ParamField path="id" type="string" required>
+  Organization ID
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/organization/org_abc123/projects \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "projects": [
+    {
+      "id": "proj_xyz789",
+      "name": "Production",
+      "organizationId": "org_abc123",
+      "cachingEnabled": true,
+      "cacheDurationSeconds": 300,
+      "mode": "hybrid",
+      "status": "active",
+      "createdAt": "2024-01-10T10:30:00Z",
+      "updatedAt": "2024-01-10T10:30:00Z"
+    },
+    {
+      "id": "proj_abc456",
+      "name": "Development",
+      "organizationId": "org_abc123",
+      "cachingEnabled": false,
+      "cacheDurationSeconds": 60,
+      "mode": "credits",
+      "status": "active",
+      "createdAt": "2024-01-05T09:15:00Z",
+      "updatedAt": "2024-01-05T09:15:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## List Transactions
+
+Retrieve billing transactions for an organization.
+
+<ParamField path="id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ResponseField name="transactions" type="array">
+  Array of transaction objects ordered by date (newest first)
+  
+  <Expandable title="Transaction Object">
+    <ResponseField name="id" type="string">
+      Transaction ID
+    </ResponseField>
+    
+    <ResponseField name="organizationId" type="string">
+      Organization ID
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      Transaction type: `subscription_start`, `subscription_cancel`, `subscription_end`, `credit_topup`, `credit_refund`, `credit_gift`, `dev_plan_start`, `dev_plan_upgrade`, `dev_plan_downgrade`, `dev_plan_cancel`, `dev_plan_end`, `dev_plan_renewal`
+    </ResponseField>
+    
+    <ResponseField name="amount" type="string | null">
+      Payment amount in USD
+    </ResponseField>
+    
+    <ResponseField name="creditAmount" type="string | null">
+      Credit amount added/removed
+    </ResponseField>
+    
+    <ResponseField name="currency" type="string">
+      Currency code (e.g., "USD")
+    </ResponseField>
+    
+    <ResponseField name="status" type="'pending' | 'completed' | 'failed'">
+      Transaction status
+    </ResponseField>
+    
+    <ResponseField name="stripePaymentIntentId" type="string | null">
+      Stripe payment intent ID
+    </ResponseField>
+    
+    <ResponseField name="stripeInvoiceId" type="string | null">
+      Stripe invoice ID
+    </ResponseField>
+    
+    <ResponseField name="description" type="string | null">
+      Transaction description
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="date">
+      Transaction date
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/organization/org_abc123/transactions \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "transactions": [
+    {
+      "id": "txn_123",
+      "organizationId": "org_abc123",
+      "type": "credit_topup",
+      "amount": "50.00",
+      "creditAmount": "50.00",
+      "currency": "USD",
+      "status": "completed",
+      "stripePaymentIntentId": "pi_abc123",
+      "stripeInvoiceId": null,
+      "description": "Credit top-up",
+      "relatedTransactionId": null,
+      "refundReason": null,
+      "createdAt": "2024-01-15T10:30:00Z",
+      "updatedAt": "2024-01-15T10:30:05Z"
+    },
+    {
+      "id": "txn_456",
+      "organizationId": "org_abc123",
+      "type": "subscription_start",
+      "amount": "49.00",
+      "creditAmount": null,
+      "currency": "USD",
+      "status": "completed",
+      "stripePaymentIntentId": null,
+      "stripeInvoiceId": "in_def456",
+      "description": "Pro plan subscription",
+      "relatedTransactionId": null,
+      "refundReason": null,
+      "createdAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:05Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+---
+
+## Get Referral Stats
+
+Retrieve referral statistics for an organization.
+
+<ParamField path="id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ResponseField name="referredCount" type="number">
+  Number of organizations referred
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.llmgateway.io/organization/org_abc123/referral-stats \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Response
+{
+  "referredCount": 3
+}
+```
+</ResponseExample>
+
+---
+
+## Plans
+
+LLM Gateway offers three organization plans:
+
+### Free Plan
+
+- 3-day log retention
+- 5 API keys per project
+- 10 projects max
+- Community support
+
+### Pro Plan ($49/month)
+
+- 90-day log retention
+- 20 API keys per project
+- 10 projects max
+- Provider key management
+- Priority support
+
+### Enterprise Plan
+
+- Custom log retention
+- Unlimited API keys
+- Unlimited projects
+- Guardrails & security features
+- Audit logs
+- Dedicated support
+- Custom contracts
+
+Contact sales@llmgateway.io for Enterprise pricing.
+
+---
+
+## Auto Top-Up
+
+Automatic credit top-up ensures your services never stop due to insufficient credits.
+
+### How It Works
+
+1. Set a credit balance threshold (e.g., $10)
+2. Set a top-up amount (e.g., $50)
+3. When credits fall below threshold, Gateway automatically charges your payment method
+4. Credits are added immediately
+
+### Configuration
+
+<RequestExample>
+```bash Enable Auto Top-Up
+curl -X PATCH https://api.llmgateway.io/organization/org_abc123 \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "autoTopUpEnabled": true,
+    "autoTopUpThreshold": 10,
+    "autoTopUpAmount": 50
+  }'
+```
+</RequestExample>
+
+<Note>
+Auto top-up requires a valid payment method on file. Charges may take a few minutes to process.
+</Note>
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 403 Forbidden - Organization Limit
+{
+  "message": "You have reached the limit of 3 organizations. Please reach out to support to increase this limit."
+}
+```
+
+```json 403 Forbidden - No Permission
+{
+  "message": "Only owners can update billing and policy settings"
+}
+```
+
+```json 403 Forbidden - Personal Org
+{
+  "message": "Personal organizations cannot be deleted. Please cancel your dev plan at code.llmgateway.io instead."
+}
+```
+
+```json 404 Not Found
+{
+  "message": "Organization not found"
+}
+```
+</ResponseExample>

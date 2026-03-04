@@ -1,122 +1,134 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "LLM Gateway",
+  "theme": "sequoia",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#040404",
+    "light": "#2563EB",
+    "dark": "#040404"
   },
   "favicon": "/favicon.svg",
+  "logo": {
+    "light": "https://media.brand.dev/f4287108-7a4f-426c-a7d8-d910062158a0.svg",
+    "dark": "https://media.brand.dev/f4287108-7a4f-426c-a7d8-d910062158a0.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/theopenco/llmgateway"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/theopenco/llmgateway",
+      "website": "https://llmgateway.io"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "self-hosting"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Features",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "features/unified-api",
+              "features/multi-provider",
+              "features/analytics",
+              "features/api-keys",
+              "features/caching",
+              "features/rate-limiting",
+              "features/guardrails"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/projects",
+              "guides/organizations",
+              "guides/playground",
+              "guides/mcp-integration",
+              "guides/migration"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Integrations",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "integrations/openai-sdk",
+              "integrations/anthropic-sdk",
+              "integrations/langchain",
+              "integrations/vercel-ai-sdk"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Gateway API",
             "pages": [
-              "api-reference/introduction"
+              "api-reference/gateway/overview",
+              "api-reference/gateway/authentication",
+              "api-reference/gateway/chat-completions",
+              "api-reference/gateway/images",
+              "api-reference/gateway/models",
+              "api-reference/gateway/anthropic-messages"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Management API",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/management/overview",
+              "api-reference/management/authentication",
+              "api-reference/management/api-keys",
+              "api-reference/management/provider-keys",
+              "api-reference/management/projects",
+              "api-reference/management/organizations",
+              "api-reference/management/activity",
+              "api-reference/management/guardrails"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Enterprise",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "enterprise/overview",
+              "enterprise/features",
+              "enterprise/licensing"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "enterprise/deployment/docker",
+              "enterprise/deployment/kubernetes",
+              "enterprise/deployment/environment-variables"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "enterprise/admin/billing",
+              "enterprise/admin/team-management",
+              "enterprise/admin/data-retention",
+              "enterprise/admin/security"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

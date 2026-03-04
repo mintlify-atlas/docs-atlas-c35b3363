@@ -1,0 +1,418 @@
+---
+title: Self-hosting
+description: Deploy LLM Gateway on your own infrastructure with Docker or Kubernetes
+icon: server
+---
+
+LLM Gateway can be self-hosted on your own infrastructure, giving you complete control over your data, configuration, and deployment environment. This guide covers deployment options and setup instructions.
+
+## Prerequisites
+
+Before deploying LLM Gateway, ensure you have:
+
+- **Docker** (version 20.10 or later) and Docker Compose
+- **PostgreSQL** (version 14 or later)
+- **Redis** (version 6 or later)
+- **Node.js** (version 20 or later) - for building from source
+- **pnpm** (version 8 or later) - for package management
+
+<Info>
+For production deployments, we recommend at least 2 CPU cores and 4GB RAM for the gateway service, plus resources for PostgreSQL and Redis.
+</Info>
+
+## Quick start with Docker Compose
+
+The fastest way to self-host LLM Gateway is using Docker Compose, which sets up all required services automatically.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/theopenco/llmgateway.git
+    cd llmgateway
+    ```
+  </Step>
+
+  <Step title="Configure environment variables">
+    Copy the example environment file and configure your settings:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit `.env` and set at least these required variables:
+
+    ```bash
+    # Database
+    DATABASE_URL=postgres://postgres:pw@localhost:5432/llmgateway
+
+    # Redis
+    REDIS_URL=redis://localhost:6379
+
+    # API URLs
+    GATEWAY_URL=http://localhost:4001
+    API_URL=http://localhost:4002
+    UI_URL=http://localhost:3002
+
+    # Authentication (generate secure random strings)
+    BETTER_AUTH_SECRET=your-secure-secret-here
+    BETTER_AUTH_URL=http://localhost:4002
+
+    # Provider API keys (add the providers you want to use)
+    OPENAI_API_KEY=sk-...
+    ANTHROPIC_API_KEY=sk-ant-...
+    ```
+
+    <Accordion title="View all available environment variables">
+      See the [environment variables reference](/enterprise/deployment/environment-variables) for a complete list of configuration options, including provider API keys, feature flags, and performance tuning settings.
+    </Accordion>
+  </Step>
+
+  <Step title="Start services with Docker Compose">
+    Start all services (PostgreSQL, Redis, Gateway, API, UI):
+
+    ```bash
+    docker compose up -d
+    ```
+
+    This will start:
+    - PostgreSQL on `localhost:5432`
+    - Redis on `localhost:6379`
+    - Gateway API on `localhost:4001`
+    - Management API on `localhost:4002`
+    - UI Dashboard on `localhost:3002`
+
+    <Tip>
+    Use `docker compose logs -f` to follow logs from all services.
+    </Tip>
+  </Step>
+
+  <Step title="Initialize the database">
+    Run database migrations and seed initial data:
+
+    ```bash
+    # Install dependencies
+    pnpm install
+
+    # Run setup (pushes schema and seeds data)
+    pnpm run setup
+    ```
+
+    This creates the necessary database tables and adds initial configuration.
+  </Step>
+
+  <Step title="Verify the deployment">
+    Check that all services are healthy:
+
+    ```bash
+    # Check gateway health
+    curl http://localhost:4001/
+
+    # Check API health
+    curl http://localhost:4002/api/health
+
+    # Open the UI in your browser
+    open http://localhost:3002
+    ```
+
+    All health checks should return `200 OK` with status information.
+  </Step>
+</Steps>
+
+## Docker Compose configuration
+
+The included `docker-compose.yml` defines the following services:
+
+```yaml docker-compose.yml
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: llmgateway
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pw
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+<Note>
+For production deployments, see the [Docker deployment guide](/enterprise/deployment/docker) for advanced configuration, including SSL, health checks, and resource limits.
+</Note>
+
+## Building from source
+
+To build and run LLM Gateway from source:
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    pnpm install
+    ```
+  </Step>
+
+  <Step title="Set up the database">
+    Ensure PostgreSQL and Redis are running, then initialize the database:
+
+    ```bash
+    pnpm run setup
+    ```
+
+    This command:
+    - Pushes the database schema to PostgreSQL
+    - Seeds initial data
+    - Validates the configuration
+  </Step>
+
+  <Step title="Build the applications">
+    ```bash
+    pnpm build
+    ```
+
+    This builds all services (Gateway, API, UI, Playground, Admin).
+  </Step>
+
+  <Step title="Start development servers">
+    ```bash
+    pnpm dev
+    ```
+
+    Or start individual services:
+    ```bash
+    # Gateway only
+    pnpm --filter gateway dev
+
+    # API only
+    pnpm --filter api dev
+
+    # UI only
+    pnpm --filter ui dev
+    ```
+  </Step>
+</Steps>
+
+## Production deployment
+
+For production environments, consider these deployment options:
+
+<CardGroup cols={2}>
+  <Card title="Docker deployment" icon="docker" href="/enterprise/deployment/docker">
+    Deploy with Docker using health checks, resource limits, and SSL configuration
+  </Card>
+  <Card title="Kubernetes deployment" icon="dharmachakra" href="/enterprise/deployment/kubernetes">
+    Deploy to Kubernetes with Helm charts, auto-scaling, and high availability
+  </Card>
+</CardGroup>
+
+## Configuration
+
+### Database
+
+LLM Gateway uses PostgreSQL for persistent storage. Configure the connection string:
+
+```bash
+DATABASE_URL=postgres://user:password@host:port/database
+```
+
+For production, use connection pooling and SSL:
+
+```bash
+DATABASE_URL=postgres://user:password@host:port/database?sslmode=require&max_connections=20
+```
+
+### Redis
+
+Redis is used for response caching and session storage:
+
+```bash
+REDIS_URL=redis://host:port
+# Or with authentication:
+REDIS_URL=redis://user:password@host:port
+```
+
+<Tip>
+Enable Redis persistence (AOF or RDB) in production to avoid losing cache data on restarts.
+</Tip>
+
+### Provider API keys
+
+Add API keys for the LLM providers you want to use:
+
+```bash
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Google Vertex AI
+GOOGLE_SERVICE_ACCOUNT_JSON={"type": "service_account", ...}
+
+# AWS Bedrock
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_REGION=us-east-1
+```
+
+See [environment variables reference](/enterprise/deployment/environment-variables) for all supported providers.
+
+### Authentication
+
+Configure Better Auth for user authentication:
+
+```bash
+BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+BETTER_AUTH_URL=https://your-domain.com
+
+# Optional: Enable GitHub OAuth
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+
+# Optional: Enable Google OAuth
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+## Health checks
+
+Monitor the health of your deployment using these endpoints:
+
+```bash
+# Gateway health (includes database and Redis checks)
+curl http://localhost:4001/
+
+# API health
+curl http://localhost:4002/api/health
+```
+
+Response format:
+
+```json
+{
+  "message": "LLMGateway API is running",
+  "version": "1.0.0",
+  "health": {
+    "status": "healthy",
+    "redis": {
+      "connected": true
+    },
+    "database": {
+      "connected": true
+    }
+  }
+}
+```
+
+<Warning>
+If either Redis or the database is unavailable, the health check returns `503 Service Unavailable`.
+</Warning>
+
+## Monitoring
+
+### Prometheus metrics
+
+LLM Gateway exposes Prometheus metrics at `/metrics`:
+
+```bash
+curl http://localhost:4001/metrics
+```
+
+Metrics include:
+- Request counts and durations
+- Token usage by model and provider
+- Cache hit/miss rates
+- Error rates
+- Database connection pool stats
+
+### OpenTelemetry
+
+Enable distributed tracing with OpenTelemetry:
+
+```bash
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=llmgateway
+OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+```
+
+## Backup and restore
+
+### Database backup
+
+Back up the PostgreSQL database regularly:
+
+```bash
+# Create backup
+docker compose exec postgres pg_dump -U postgres llmgateway > backup.sql
+
+# Restore backup
+docker compose exec -T postgres psql -U postgres llmgateway < backup.sql
+```
+
+### Redis backup
+
+Redis persistence is optional but recommended for production. Enable AOF or RDB snapshots in your Redis configuration.
+
+## Troubleshooting
+
+### Database connection errors
+
+If you see database connection errors:
+
+1. Verify PostgreSQL is running: `docker compose ps postgres`
+2. Check the connection string in `.env`
+3. Ensure the database exists: `docker compose exec postgres psql -U postgres -l`
+4. Check database logs: `docker compose logs postgres`
+
+### Redis connection errors
+
+If Redis is unavailable:
+
+1. Verify Redis is running: `docker compose ps redis`
+2. Check the connection string in `.env`
+3. Test connectivity: `docker compose exec redis redis-cli ping`
+
+### Provider API errors
+
+If LLM requests fail:
+
+1. Verify provider API keys are set correctly in `.env`
+2. Check provider key status in the UI dashboard
+3. Review request logs: `docker compose logs gateway`
+4. Test directly with the provider's API to rule out key issues
+
+### Build errors
+
+If build fails:
+
+1. Ensure Node.js version is 20 or later: `node --version`
+2. Clear build cache: `pnpm clean`
+3. Reinstall dependencies: `rm -rf node_modules && pnpm install`
+4. Check for TypeScript errors: `pnpm build:core`
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Environment variables" icon="gear" href="/enterprise/deployment/environment-variables">
+    Complete reference for all configuration options
+  </Card>
+  <Card title="Docker deployment" icon="docker" href="/enterprise/deployment/docker">
+    Production-ready Docker configuration
+  </Card>
+  <Card title="Kubernetes deployment" icon="dharmachakra" href="/enterprise/deployment/kubernetes">
+    Deploy to Kubernetes with Helm charts
+  </Card>
+  <Card title="Security best practices" icon="shield" href="/enterprise/admin/security">
+    Secure your deployment for production use
+  </Card>
+</CardGroup>

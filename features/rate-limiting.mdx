@@ -1,0 +1,397 @@
+---
+title: Rate Limiting
+description: Control request rates with API key usage limits and provider-level throttling
+---
+
+## Overview
+
+LLM Gateway provides **rate limiting** at multiple levels to control costs, prevent abuse, and ensure fair usage across your organization.
+
+## API Key Usage Limits
+
+Set hard limits on total token usage per API key:
+
+```typescript apps/gateway/src/chat/chat.ts
+if (apiKey.usageLimit && Number(apiKey.usage) >= Number(apiKey.usageLimit)) {
+  throw new HTTPException(401, {
+    message: "Unauthorized: LLMGateway API key reached its usage limit."
+  });
+}
+```
+
+### Setting Usage Limits
+
+<Tabs>
+  <Tab title="Dashboard">
+    1. Go to API Keys page
+    2. Click on an API key
+    3. Set "Usage Limit" (in tokens)
+    4. Save changes
+  </Tab>
+  
+  <Tab title="API">
+    ```bash
+    curl https://api.llmgateway.io/keys/api/limit/key_xyz789 \
+      -X PATCH \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "usageLimit": "1000000"
+      }'
+    ```
+  </Tab>
+  
+  <Tab title="On Creation">
+    ```bash
+    curl https://api.llmgateway.io/keys/api \
+      -X POST \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "description": "Limited API Key",
+        "projectId": "proj_abc123",
+        "usageLimit": "500000"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+Usage limits are measured in **total tokens** (prompt + completion tokens combined).
+</Note>
+
+## Free Model Rate Limits
+
+Free models have special rate limiting:
+
+```typescript apps/gateway/src/chat/tools/validate-free-model-usage.ts
+export async function validateFreeModelUsage(
+  context: Context,
+  organizationId: string,
+  modelId: string,
+  modelInfo: ModelDefinition,
+  options?: { skipEmailVerification?: boolean }
+) {
+  // Check email verification
+  if (!options?.skipEmailVerification) {
+    const org = await db.query.organization.findFirst({
+      where: { id: { eq: organizationId } },
+      with: { owner: true }
+    });
+    
+    if (!org?.owner?.emailVerified) {
+      throw new HTTPException(403, {
+        message: "Email verification required to use free models"
+      });
+    }
+  }
+  
+  // Apply rate limiting
+  const usage = await getFreeModelUsage(organizationId, modelId);
+  if (usage.requestsToday >= FREE_MODEL_DAILY_LIMIT) {
+    throw new HTTPException(429, {
+      message: "Free model daily rate limit exceeded"
+    });
+  }
+}
+```
+
+### Free Model Limits
+
+| Plan | Daily Requests | Monthly Requests |
+|------|---------------|------------------|
+| Free (verified email) | 100 | 3,000 |
+| Pro | Unlimited | Unlimited |
+| Enterprise | Unlimited | Unlimited |
+
+<Warning>
+Free models require email verification and are subject to stricter rate limits.
+</Warning>
+
+## Provider Rate Limits
+
+Each provider has its own rate limits:
+
+### OpenAI
+
+- **Tier 1**: 500 requests/minute, 60,000 tokens/minute
+- **Tier 2**: 5,000 requests/minute, 800,000 tokens/minute
+- **Tier 3+**: Higher limits based on usage
+
+### Anthropic
+
+- **Free tier**: 5 requests/minute
+- **Build tier**: 1,000 requests/minute
+- **Scale tier**: Custom limits
+
+### Google AI Studio
+
+- **Free quota**: 15 requests/minute, 1M tokens/day
+- **Paid tier**: 1,000 requests/minute, 4M tokens/minute
+
+### Google Vertex AI
+
+- Based on Google Cloud quotas
+- Configurable per project
+
+<Tip>
+When hitting provider rate limits, LLM Gateway automatically retries with exponential backoff.
+</Tip>
+
+## Automatic Retry on 429
+
+The gateway handles rate limit errors automatically:
+
+```typescript apps/gateway/src/chat/tools/retry-with-fallback.ts
+export function shouldRetryRequest(
+  statusCode: number,
+  errorType: string,
+  attempt: number,
+): boolean {
+  if (attempt >= MAX_RETRIES) {
+    return false;
+  }
+  
+  // Retry on rate limits (429)
+  if (statusCode === 429) {
+    return true;
+  }
+  
+  return false;
+}
+```
+
+### Retry Strategy
+
+1. **First retry**: Wait 1 second
+2. **Second retry**: Wait 2 seconds
+3. **Third retry**: Wait 4 seconds
+4. **If all fail**: Try alternative provider (if available)
+
+## Credit-Based Rate Limiting
+
+In credits mode, rate limiting is based on available credits:
+
+```typescript apps/gateway/src/chat/chat.ts
+if (project.mode === "credits") {
+  const regularCredits = parseFloat(organization.credits ?? "0");
+  const devPlanCreditsRemaining = organization.devPlan !== "none"
+    ? parseFloat(organization.devPlanCreditsLimit ?? "0") -
+      parseFloat(organization.devPlanCreditsUsed ?? "0")
+    : 0;
+  const totalAvailableCredits = regularCredits + devPlanCreditsRemaining;
+  
+  if (totalAvailableCredits <= 0) {
+    throw new HTTPException(402, {
+      message: "Organization has insufficient credits"
+    });
+  }
+}
+```
+
+### How It Works
+
+- **Credits deducted** after each request
+- **Requests blocked** when credits reach $0
+- **Dev plan credits** separate from regular credits
+- **Auto-renewal** available for subscription plans
+
+## Project-Level Limits
+
+Each project inherits limits from its organization:
+
+```typescript
+interface Project {
+  mode: "api-keys" | "credits" | "hybrid";
+  status: "active" | "deleted";
+}
+
+// Deleted projects are blocked
+if (project.status === "deleted") {
+  throw new HTTPException(410, {
+    message: "Project has been archived and is no longer accessible"
+  });
+}
+```
+
+## Organization-Level Limits
+
+### Plan Limits
+
+| Feature | Free | Pro | Enterprise |
+|---------|------|-----|------------|
+| API Keys/Project | 5 | 20 | Unlimited |
+| Projects/Org | 3 | 10 | Unlimited |
+| Team Members | 1 | 5 | Unlimited |
+| Log Retention | 3 days | 90 days | Custom |
+| Rate Limits | Standard | Higher | Custom |
+
+## Monitoring Usage
+
+Track usage in real-time:
+
+<Tabs>
+  <Tab title="Dashboard">
+    View usage charts:
+    - Requests per day
+    - Tokens per day
+    - Cost per day
+    - By model/provider
+  </Tab>
+  
+  <Tab title="API">
+    ```bash
+    curl "https://api.llmgateway.io/logs?projectId=proj_abc&limit=100" \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+    ```
+  </Tab>
+  
+  <Tab title="Usage Field">
+    ```bash
+    curl "https://api.llmgateway.io/keys/api?projectId=proj_abc" \
+      -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+    
+    # Response includes current usage
+    {
+      "apiKeys": [{
+        "usage": "45000",
+        "usageLimit": "1000000"
+      }]
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Handling Rate Limit Errors
+
+When rate limits are exceeded:
+
+```json
+{
+  "error": {
+    "message": "Rate limit exceeded. Please try again later.",
+    "type": "rate_limit_error",
+    "code": "rate_limit_exceeded"
+  }
+}
+```
+
+HTTP Status Codes:
+
+- **429**: Rate limit exceeded (retry with backoff)
+- **402**: Payment required (insufficient credits)
+- **401**: Usage limit reached (API key limit hit)
+
+## Implementing Client-Side Rate Limiting
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import time
+    from openai import OpenAI, RateLimitError
+
+    client = OpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="YOUR_API_KEY"
+    )
+
+    def make_request_with_retry(messages, max_retries=3):
+        for attempt in range(max_retries):
+            try:
+                return client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=messages
+                )
+            except RateLimitError as e:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    time.sleep(wait_time)
+                else:
+                    raise
+    ```
+  </Tab>
+  
+  <Tab title="TypeScript">
+    ```typescript
+    import OpenAI from 'openai';
+
+    const client = new OpenAI({
+      baseURL: 'https://api.llmgateway.io/v1',
+      apiKey: process.env.LLMGATEWAY_API_KEY,
+    });
+
+    async function makeRequestWithRetry(
+      messages: any[],
+      maxRetries = 3
+    ) {
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          return await client.chat.completions.create({
+            model: 'gpt-4o',
+            messages,
+          });
+        } catch (error: any) {
+          if (error.status === 429 && attempt < maxRetries - 1) {
+            const waitTime = Math.pow(2, attempt) * 1000;
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          } else {
+            throw error;
+          }
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Set Conservative Limits" icon="gauge">
+    Start with lower limits and increase as needed
+  </Card>
+  
+  <Card title="Monitor Usage" icon="chart-line">
+    Track usage trends to predict when limits will be hit
+  </Card>
+  
+  <Card title="Implement Backoff" icon="clock">
+    Use exponential backoff when retrying
+  </Card>
+  
+  <Card title="Use Multiple Keys" icon="key">
+    Distribute load across multiple API keys
+  </Card>
+</CardGroup>
+
+<Tip>
+Configure alerts in your monitoring system to notify you when usage approaches 80% of the limit.
+</Tip>
+
+## Bypass Rate Limiting
+
+Rate limiting can be disabled for specific scenarios:
+
+```typescript
+// Disable for onboarding flows
+if (onboarding) {
+  // Skip free model rate limiting
+  await validateFreeModelUsage(
+    c,
+    project.organizationId,
+    usedModel,
+    modelInfo,
+    { skipEmailVerification: true }
+  );
+}
+```
+
+<Warning>
+Only use rate limit bypasses for controlled onboarding flows. Never expose this in production APIs.
+</Warning>
+
+## Related Documentation
+
+- [API Keys Management](/features/api-keys)
+- [Usage Analytics](/features/analytics)
+- [Multi-Provider Support](/features/multi-provider)

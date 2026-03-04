@@ -1,0 +1,375 @@
+---
+title: GET /v1/models
+description: List all available models with their capabilities and pricing
+---
+
+Retrieves a list of all models available through the LLM Gateway, including their capabilities, supported providers, and pricing information.
+
+## Endpoint
+
+```
+GET https://api.llmgateway.io/v1/models
+```
+
+## Authentication
+
+Requires authentication using Bearer token or x-api-key header. See [Authentication](/api-reference/gateway/authentication).
+
+## Query Parameters
+
+<ParamField query="include_deactivated" type="boolean" default={false}>
+  Include models that have been deactivated.
+  
+  Example: `?include_deactivated=true`
+</ParamField>
+
+<ParamField query="exclude_deprecated" type="boolean" default={false}>
+  Exclude models that have been deprecated.
+  
+  Example: `?exclude_deprecated=true`
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="array">
+  Array of model objects.
+  
+  Each model contains:
+  
+  <Expandable title="Model Object">
+    <ResponseField name="id" type="string">
+      Unique model identifier.
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Human-readable model name.
+    </ResponseField>
+    
+    <ResponseField name="aliases" type="array">
+      Alternative names for the model.
+    </ResponseField>
+    
+    <ResponseField name="created" type="number">
+      Unix timestamp when the model was created.
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Model description including providers.
+    </ResponseField>
+    
+    <ResponseField name="family" type="string">
+      Model family (e.g., "openai", "anthropic", "google").
+    </ResponseField>
+    
+    <ResponseField name="architecture" type="object">
+      Model architecture details.
+      
+      Contains:
+      - `input_modalities` (array): Supported input types (`"text"`, `"image"`)
+      - `output_modalities` (array): Supported output types (`"text"`, `"image"`)
+      - `tokenizer` (string): Tokenizer used by the model
+    </ResponseField>
+    
+    <ResponseField name="top_provider" type="object">
+      Information about the primary provider.
+      
+      Contains:
+      - `is_moderated` (boolean): Whether content is moderated
+    </ResponseField>
+    
+    <ResponseField name="providers" type="array">
+      Array of providers offering this model.
+      
+      Each provider contains:
+      - `providerId` (string): Provider identifier
+      - `modelName` (string): Provider-specific model name
+      - `pricing` (object): Provider-specific pricing
+        - `prompt` (string): Cost per input token
+        - `completion` (string): Cost per output token
+        - `image` (string): Cost per image
+      - `streaming` (boolean): Streaming support
+      - `vision` (boolean): Vision/multimodal support
+      - `cancellation` (boolean): Request cancellation support
+      - `tools` (boolean): Function calling support
+      - `parallelToolCalls` (boolean): Parallel tool call support
+      - `reasoning` (boolean): Reasoning capability support
+      - `stability` (string): Stability level (`"stable"`, `"beta"`, `"unstable"`, `"experimental"`)
+    </ResponseField>
+    
+    <ResponseField name="pricing" type="object">
+      Aggregated pricing information.
+      
+      Contains:
+      - `prompt` (string): Cost per input token (USD)
+      - `completion` (string): Cost per output token (USD)
+      - `image` (string): Cost per image (USD)
+      - `request` (string): Cost per request (USD)
+      - `input_cache_read` (string): Cost per cached input token (USD)
+      - `input_cache_write` (string): Cost per cache write token (USD)
+      - `web_search` (string): Cost per web search (USD)
+      - `internal_reasoning` (string): Cost per reasoning token (USD)
+    </ResponseField>
+    
+    <ResponseField name="context_length" type="number">
+      Maximum context length in tokens.
+    </ResponseField>
+    
+    <ResponseField name="supported_parameters" type="array">
+      List of supported request parameters.
+      
+      Common parameters:
+      - `temperature`
+      - `max_tokens`
+      - `top_p`
+      - `frequency_penalty`
+      - `presence_penalty`
+      - `response_format`
+      - `tools`
+      - `tool_choice`
+      - `reasoning`
+    </ResponseField>
+    
+    <ResponseField name="json_output" type="boolean">
+      Whether the model supports JSON output mode.
+    </ResponseField>
+    
+    <ResponseField name="structured_outputs" type="boolean">
+      Whether the model supports structured outputs with JSON schemas.
+    </ResponseField>
+    
+    <ResponseField name="free" type="boolean">
+      Whether the model is free to use.
+    </ResponseField>
+    
+    <ResponseField name="deprecated_at" type="string">
+      ISO 8601 timestamp when the model was deprecated.
+    </ResponseField>
+    
+    <ResponseField name="deactivated_at" type="string">
+      ISO 8601 timestamp when the model was deactivated.
+    </ResponseField>
+    
+    <ResponseField name="stability" type="string">
+      Overall model stability level.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+### List All Models
+
+<CodeGroup>
+
+```bash cURL
+curl https://api.llmgateway.io/v1/models \
+  -H "Authorization: Bearer $LLMGATEWAY_API_KEY"
+```
+
+```python Python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ.get("LLMGATEWAY_API_KEY"),
+    base_url="https://api.llmgateway.io/v1"
+)
+
+models = client.models.list()
+
+for model in models.data:
+    print(f"{model.id}: {model.description}")
+```
+
+```javascript JavaScript
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+  apiKey: process.env.LLMGATEWAY_API_KEY,
+  baseURL: 'https://api.llmgateway.io/v1'
+});
+
+const models = await client.models.list();
+
+for (const model of models.data) {
+  console.log(`${model.id}: ${model.description}`);
+}
+```
+
+</CodeGroup>
+
+### Filter Models by Capability
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ.get("LLMGATEWAY_API_KEY"),
+    base_url="https://api.llmgateway.io/v1"
+)
+
+models = client.models.list()
+
+# Find models with vision support
+vision_models = [
+    model for model in models.data
+    if 'image' in model.architecture['input_modalities']
+]
+
+print("Models with vision support:")
+for model in vision_models:
+    print(f"  - {model.id}")
+
+# Find free models
+free_models = [model for model in models.data if model.free]
+
+print("\nFree models:")
+for model in free_models:
+    print(f"  - {model.id}")
+
+# Find models with reasoning support
+reasoning_models = [
+    model for model in models.data
+    if any(p['reasoning'] for p in model.providers)
+]
+
+print("\nModels with reasoning:")
+for model in reasoning_models:
+    print(f"  - {model.id}")
+```
+
+### Compare Pricing
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ.get("LLMGATEWAY_API_KEY"),
+    base_url="https://api.llmgateway.io/v1"
+)
+
+models = client.models.list()
+
+# Sort by total pricing (input + output)
+models_by_price = sorted(
+    models.data,
+    key=lambda m: float(m.pricing['prompt']) + float(m.pricing['completion'])
+)
+
+print("Top 10 cheapest models:")
+for model in models_by_price[:10]:
+    total_price = float(model.pricing['prompt']) + float(model.pricing['completion'])
+    print(f"{model.id}: ${total_price:.8f} per token")
+```
+
+### Check Model Capabilities
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ.get("LLMGATEWAY_API_KEY"),
+    base_url="https://api.llmgateway.io/v1"
+)
+
+models = client.models.list()
+
+# Find a specific model
+model = next((m for m in models.data if m.id == 'gpt-4o'), None)
+
+if model:
+    print(f"Model: {model.id}")
+    print(f"Context length: {model.context_length:,} tokens")
+    print(f"Streaming: {any(p['streaming'] for p in model.providers)}")
+    print(f"Vision: {any(p['vision'] for p in model.providers)}")
+    print(f"Tools: {any(p['tools'] for p in model.providers)}")
+    print(f"JSON output: {model.json_output}")
+    print(f"Structured outputs: {model.structured_outputs}")
+    print(f"\nSupported parameters:")
+    for param in model.supported_parameters:
+        print(f"  - {param}")
+    print(f"\nProviders:")
+    for provider in model.providers:
+        print(f"  - {provider['providerId']}: {provider['modelName']}")
+```
+
+## Response Example
+
+```json
+{
+  "data": [
+    {
+      "id": "gpt-4o",
+      "name": "gpt-4o",
+      "aliases": ["gpt-4o-latest"],
+      "created": 1677858242,
+      "description": "gpt-4o provided by openai, azure",
+      "family": "openai",
+      "architecture": {
+        "input_modalities": ["text", "image"],
+        "output_modalities": ["text"],
+        "tokenizer": "GPT"
+      },
+      "top_provider": {
+        "is_moderated": true
+      },
+      "providers": [
+        {
+          "providerId": "openai",
+          "modelName": "gpt-4o-2024-08-06",
+          "pricing": {
+            "prompt": "0.0000025",
+            "completion": "0.00001",
+            "image": "0"
+          },
+          "streaming": true,
+          "vision": true,
+          "cancellation": true,
+          "tools": true,
+          "parallelToolCalls": true,
+          "reasoning": false,
+          "stability": "stable"
+        }
+      ],
+      "pricing": {
+        "prompt": "0.0000025",
+        "completion": "0.00001",
+        "image": "0",
+        "request": "0",
+        "input_cache_read": "0",
+        "input_cache_write": "0",
+        "web_search": "0",
+        "internal_reasoning": "0"
+      },
+      "context_length": 128000,
+      "supported_parameters": [
+        "temperature",
+        "max_tokens",
+        "top_p",
+        "frequency_penalty",
+        "presence_penalty",
+        "response_format",
+        "tools",
+        "tool_choice"
+      ],
+      "json_output": true,
+      "structured_outputs": true,
+      "free": false,
+      "stability": "stable"
+    }
+  ]
+}
+```
+
+## Notes
+
+- Models with all providers deactivated are excluded by default
+- Use `include_deactivated=true` to see all models including deactivated ones
+- Use `exclude_deprecated=true` to hide deprecated models
+- Pricing is in USD per token (typically shown as cost per million tokens)
+- Context length represents the maximum total tokens (input + output)
+- Some models may be available through multiple providers with different pricing
+- The `stability` field indicates the maturity level of the model

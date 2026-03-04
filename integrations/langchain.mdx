@@ -1,0 +1,561 @@
+---
+title: LangChain
+description: Integrate LLM Gateway with LangChain for Python and JavaScript
+---
+
+# LangChain Integration
+
+LangChain is a popular framework for building LLM-powered applications. Since LLM Gateway is OpenAI-compatible, you can use LangChain's `ChatOpenAI` class with a custom base URL.
+
+## Quick Start
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from langchain_openai import ChatOpenAI
+
+    llm = ChatOpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key",
+        model="gpt-5"
+    )
+
+    response = llm.invoke("What is LangChain?")
+    print(response.content)
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```typescript
+    import { ChatOpenAI } from '@langchain/openai';
+
+    const llm = new ChatOpenAI({
+        configuration: {
+            baseURL: 'https://api.llmgateway.io/v1',
+            apiKey: 'your-llmgateway-api-key'
+        },
+        model: 'gpt-5'
+    });
+
+    const response = await llm.invoke('What is LangChain?');
+    console.log(response.content);
+    ```
+  </Tab>
+</Tabs>
+
+## Installation
+
+<Tabs>
+  <Tab title="Python">
+    <CodeGroup>
+    ```bash pip
+    pip install langchain langchain-openai
+    ```
+
+    ```bash poetry
+    poetry add langchain langchain-openai
+    ```
+    </CodeGroup>
+  </Tab>
+  <Tab title="JavaScript">
+    <CodeGroup>
+    ```bash npm
+    npm install langchain @langchain/openai
+    ```
+
+    ```bash yarn
+    yarn add langchain @langchain/openai
+    ```
+
+    ```bash pnpm
+    pnpm add langchain @langchain/openai
+    ```
+    </CodeGroup>
+  </Tab>
+</Tabs>
+
+## Before and After Comparison
+
+### Python
+
+<CodeGroup>
+```python Before (OpenAI)
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    api_key="sk-...",  # OpenAI API key
+    model="gpt-4o"
+)
+
+response = llm.invoke("Hello!")
+```
+
+```python After (LLM Gateway)
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    base_url="https://api.llmgateway.io/v1",  # Add this line
+    api_key="your-llmgateway-api-key",  # Use LLM Gateway API key
+    model="gpt-5"  # Use LLM Gateway model names
+)
+
+response = llm.invoke("Hello!")
+```
+</CodeGroup>
+
+### JavaScript
+
+<CodeGroup>
+```typescript Before (OpenAI)
+import { ChatOpenAI } from '@langchain/openai';
+
+const llm = new ChatOpenAI({
+    apiKey: 'sk-...',  // OpenAI API key
+    model: 'gpt-4o'
+});
+
+const response = await llm.invoke('Hello!');
+```
+
+```typescript After (LLM Gateway)
+import { ChatOpenAI } from '@langchain/openai';
+
+const llm = new ChatOpenAI({
+    configuration: {
+        baseURL: 'https://api.llmgateway.io/v1',  // Add this
+        apiKey: 'your-llmgateway-api-key'  // Use LLM Gateway API key
+    },
+    model: 'gpt-5'  // Use LLM Gateway model names
+});
+
+const response = await llm.invoke('Hello!');
+```
+</CodeGroup>
+
+## Streaming
+
+LLM Gateway fully supports LangChain's streaming interface:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from langchain_openai import ChatOpenAI
+
+    llm = ChatOpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key",
+        model="gpt-5",
+        streaming=True
+    )
+
+    for chunk in llm.stream("Write a short story"):
+        print(chunk.content, end="", flush=True)
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```typescript
+    import { ChatOpenAI } from '@langchain/openai';
+
+    const llm = new ChatOpenAI({
+        configuration: {
+            baseURL: 'https://api.llmgateway.io/v1',
+            apiKey: 'your-llmgateway-api-key'
+        },
+        model: 'gpt-5',
+        streaming: true
+    });
+
+    const stream = await llm.stream('Write a short story');
+
+    for await (const chunk of stream) {
+        process.stdout.write(chunk.content);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Async Streaming
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from langchain_openai import ChatOpenAI
+    import asyncio
+
+    async def main():
+        llm = ChatOpenAI(
+            base_url="https://api.llmgateway.io/v1",
+            api_key="your-llmgateway-api-key",
+            model="gpt-5"
+        )
+
+        async for chunk in llm.astream("Write a poem"):
+            print(chunk.content, end="", flush=True)
+
+    asyncio.run(main())
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```typescript
+    import { ChatOpenAI } from '@langchain/openai';
+
+    const llm = new ChatOpenAI({
+        configuration: {
+            baseURL: 'https://api.llmgateway.io/v1',
+            apiKey: 'your-llmgateway-api-key'
+        },
+        model: 'gpt-5'
+    });
+
+    const stream = await llm.stream('Write a poem');
+
+    for await (const chunk of stream) {
+        process.stdout.write(chunk.content);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Chains and Prompts
+
+LLM Gateway works seamlessly with LangChain's chain and prompt templates:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from langchain_openai import ChatOpenAI
+    from langchain.prompts import ChatPromptTemplate
+    from langchain.schema.output_parser import StrOutputParser
+
+    llm = ChatOpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key",
+        model="gpt-5"
+    )
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful assistant."),
+        ("user", "{input}")
+    ])
+
+    chain = prompt | llm | StrOutputParser()
+
+    result = chain.invoke({"input": "What is LangChain?"})
+    print(result)
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```typescript
+    import { ChatOpenAI } from '@langchain/openai';
+    import { ChatPromptTemplate } from '@langchain/core/prompts';
+    import { StringOutputParser } from '@langchain/core/output_parsers';
+
+    const llm = new ChatOpenAI({
+        configuration: {
+            baseURL: 'https://api.llmgateway.io/v1',
+            apiKey: 'your-llmgateway-api-key'
+        },
+        model: 'gpt-5'
+    });
+
+    const prompt = ChatPromptTemplate.fromMessages([
+        ['system', 'You are a helpful assistant.'],
+        ['user', '{input}']
+    ]);
+
+    const chain = prompt.pipe(llm).pipe(new StringOutputParser());
+
+    const result = await chain.invoke({ input: 'What is LangChain?' });
+    console.log(result);
+    ```
+  </Tab>
+</Tabs>
+
+## Tools and Function Calling
+
+LLM Gateway supports LangChain's tool calling:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from langchain_openai import ChatOpenAI
+    from langchain.tools import tool
+
+    llm = ChatOpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key",
+        model="gpt-5"
+    )
+
+    @tool
+    def get_weather(location: str) -> str:
+        """Get the current weather for a location."""
+        return f"The weather in {location} is sunny."
+
+    llm_with_tools = llm.bind_tools([get_weather])
+
+    response = llm_with_tools.invoke("What's the weather in Boston?")
+    print(response.tool_calls)
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```typescript
+    import { ChatOpenAI } from '@langchain/openai';
+    import { tool } from '@langchain/core/tools';
+    import { z } from 'zod';
+
+    const llm = new ChatOpenAI({
+        configuration: {
+            baseURL: 'https://api.llmgateway.io/v1',
+            apiKey: 'your-llmgateway-api-key'
+        },
+        model: 'gpt-5'
+    });
+
+    const getWeather = tool(
+        async ({ location }) => {
+            return `The weather in ${location} is sunny.`;
+        },
+        {
+            name: 'get_weather',
+            description: 'Get the current weather for a location',
+            schema: z.object({
+                location: z.string().describe('The city name')
+            })
+        }
+    );
+
+    const llmWithTools = llm.bindTools([getWeather]);
+
+    const response = await llmWithTools.invoke('What\'s the weather in Boston?');
+    console.log(response.tool_calls);
+    ```
+  </Tab>
+</Tabs>
+
+## Retrieval-Augmented Generation (RAG)
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+    from langchain.vectorstores import FAISS
+    from langchain.text_splitter import CharacterTextSplitter
+    from langchain.chains import RetrievalQA
+
+    # Initialize LLM with LLM Gateway
+    llm = ChatOpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key",
+        model="gpt-5"
+    )
+
+    # Initialize embeddings (can also use LLM Gateway)
+    embeddings = OpenAIEmbeddings(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key"
+    )
+
+    # Create vector store
+    texts = ["LangChain is a framework...", "LLM Gateway is..."]
+    vectorstore = FAISS.from_texts(texts, embeddings)
+
+    # Create RAG chain
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        retriever=vectorstore.as_retriever()
+    )
+
+    result = qa_chain.invoke({"query": "What is LangChain?"})
+    print(result["result"])
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```typescript
+    import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
+    import { MemoryVectorStore } from 'langchain/vectorstores/memory';
+    import { RetrievalQAChain } from 'langchain/chains';
+
+    // Initialize LLM with LLM Gateway
+    const llm = new ChatOpenAI({
+        configuration: {
+            baseURL: 'https://api.llmgateway.io/v1',
+            apiKey: 'your-llmgateway-api-key'
+        },
+        model: 'gpt-5'
+    });
+
+    // Initialize embeddings
+    const embeddings = new OpenAIEmbeddings({
+        configuration: {
+            baseURL: 'https://api.llmgateway.io/v1',
+            apiKey: 'your-llmgateway-api-key'
+        }
+    });
+
+    // Create vector store
+    const texts = ['LangChain is a framework...', 'LLM Gateway is...'];
+    const vectorStore = await MemoryVectorStore.fromTexts(
+        texts,
+        [],
+        embeddings
+    );
+
+    // Create RAG chain
+    const chain = RetrievalQAChain.fromLLM(
+        llm,
+        vectorStore.asRetriever()
+    );
+
+    const result = await chain.call({ query: 'What is LangChain?' });
+    console.log(result.text);
+    ```
+  </Tab>
+</Tabs>
+
+## Agents
+
+LLM Gateway works with LangChain agents:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from langchain_openai import ChatOpenAI
+    from langchain.agents import create_tool_calling_agent, AgentExecutor
+    from langchain.tools import tool
+    from langchain.prompts import ChatPromptTemplate
+
+    llm = ChatOpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key",
+        model="gpt-5"
+    )
+
+    @tool
+    def search(query: str) -> str:
+        """Search for information."""
+        return f"Results for: {query}"
+
+    tools = [search]
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful assistant"),
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}")
+    ])
+
+    agent = create_tool_calling_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools)
+
+    result = agent_executor.invoke({"input": "Search for LangChain tutorials"})
+    print(result["output"])
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```typescript
+    import { ChatOpenAI } from '@langchain/openai';
+    import { createToolCallingAgent, AgentExecutor } from 'langchain/agents';
+    import { tool } from '@langchain/core/tools';
+    import { ChatPromptTemplate } from '@langchain/core/prompts';
+    import { z } from 'zod';
+
+    const llm = new ChatOpenAI({
+        configuration: {
+            baseURL: 'https://api.llmgateway.io/v1',
+            apiKey: 'your-llmgateway-api-key'
+        },
+        model: 'gpt-5'
+    });
+
+    const search = tool(
+        async ({ query }) => {
+            return `Results for: ${query}`;
+        },
+        {
+            name: 'search',
+            description: 'Search for information',
+            schema: z.object({
+                query: z.string()
+            })
+        }
+    );
+
+    const tools = [search];
+
+    const prompt = ChatPromptTemplate.fromMessages([
+        ['system', 'You are a helpful assistant'],
+        ['human', '{input}'],
+        ['placeholder', '{agent_scratchpad}']
+    ]);
+
+    const agent = await createToolCallingAgent({ llm, tools, prompt });
+    const executor = new AgentExecutor({ agent, tools });
+
+    const result = await executor.invoke({ input: 'Search for LangChain tutorials' });
+    console.log(result.output);
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+<Tabs>
+  <Tab title="Python">
+    ```bash .env
+    OPENAI_API_BASE=https://api.llmgateway.io/v1
+    OPENAI_API_KEY=your-llmgateway-api-key
+    ```
+
+    ```python
+    from langchain_openai import ChatOpenAI
+
+    # Automatically reads OPENAI_API_BASE and OPENAI_API_KEY
+    llm = ChatOpenAI(model="gpt-5")
+
+    response = llm.invoke("Hello!")
+    print(response.content)
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```bash .env
+    OPENAI_API_BASE=https://api.llmgateway.io/v1
+    OPENAI_API_KEY=your-llmgateway-api-key
+    ```
+
+    ```typescript
+    import { ChatOpenAI } from '@langchain/openai';
+
+    // Automatically reads environment variables
+    const llm = new ChatOpenAI({ model: 'gpt-5' });
+
+    const response = await llm.invoke('Hello!');
+    console.log(response.content);
+    ```
+  </Tab>
+</Tabs>
+
+## Model Selection
+
+```python
+# Use LLM Gateway's unified model names
+model="gpt-5"  # Auto-routes to best provider
+
+# Specify a provider
+model="openai/gpt-4o"
+model="anthropic/claude-3-5-sonnet-20241022"
+
+# Use automatic routing
+model="auto"  # Selects cheapest model
+```
+
+## Caveats and Limitations
+
+- **Configuration Syntax**: JavaScript requires `configuration` object wrapping `baseURL` and `apiKey`
+- **Model Names**: Use LLM Gateway's model naming scheme
+- **Environment Variables**: In Python, use `OPENAI_API_BASE`; in JavaScript, use `OPENAI_API_BASE` or pass `configuration.baseURL`
+- **Embeddings**: LLM Gateway also supports embeddings with the same configuration
+
+## Next Steps
+
+- [View available models](/api-reference/gateway/models)
+- [Learn about automatic routing](/features/multi-provider)
+- [Explore LangChain documentation](https://python.langchain.com/docs/get_started/introduction)

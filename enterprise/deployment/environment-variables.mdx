@@ -1,0 +1,532 @@
+---
+title: Environment Variables
+description: Complete reference for LLM Gateway environment variables
+---
+
+## Overview
+
+LLM Gateway configuration is managed through environment variables. This page documents all available variables grouped by service.
+
+## Database Configuration
+
+### PostgreSQL
+
+<ParamField path="POSTGRES_USER" type="string" default="postgres">
+PostgreSQL username for authentication.
+</ParamField>
+
+<ParamField path="POSTGRES_PASSWORD" type="string" required>
+PostgreSQL password. Use a strong password in production.
+</ParamField>
+
+<ParamField path="POSTGRES_DB" type="string" default="llmgateway">
+PostgreSQL database name.
+</ParamField>
+
+<ParamField path="POSTGRES_PORT" type="number" default="5432">
+PostgreSQL server port.
+</ParamField>
+
+<ParamField path="DATABASE_URL" type="string" required>
+Complete PostgreSQL connection URL.
+
+Format: `postgres://user:password@host:port/database`
+
+Example: `postgres://postgres:pw@postgres:5432/llmgateway`
+</ParamField>
+
+## Redis Configuration
+
+<ParamField path="REDIS_PASSWORD" type="string" required>
+Redis authentication password.
+</ParamField>
+
+<ParamField path="REDIS_PORT" type="number" default="6379">
+Redis server port.
+</ParamField>
+
+<ParamField path="REDIS_HOST" type="string" default="redis">
+Redis server hostname.
+</ParamField>
+
+## Service Ports
+
+<ParamField path="GATEWAY_PORT" type="number" default="4001">
+LLM Gateway service port.
+</ParamField>
+
+<ParamField path="API_PORT" type="number" default="4002">
+Backend API service port.
+</ParamField>
+
+<ParamField path="UI_PORT" type="number" default="3002">
+Web dashboard port.
+</ParamField>
+
+<ParamField path="PLAYGROUND_PORT" type="number" default="3003">
+Playground interface port.
+</ParamField>
+
+<ParamField path="ADMIN_PORT" type="number" default="3006">
+Admin dashboard port.
+</ParamField>
+
+<ParamField path="DOCS_PORT" type="number" default="3005">
+Documentation site port.
+</ParamField>
+
+<ParamField path="CODE_PORT" type="number" default="3004">
+Dev plans/code landing page port.
+</ParamField>
+
+## URL Configuration
+
+<ParamField path="UI_URL" type="string" default="http://localhost:3002">
+Public URL for the web dashboard.
+
+Example: `https://llmgateway.yourdomain.com`
+</ParamField>
+
+<ParamField path="API_URL" type="string" default="http://localhost:4002">
+Public URL for the API service.
+
+Example: `https://api.llmgateway.yourdomain.com`
+</ParamField>
+
+<ParamField path="API_BACKEND_URL" type="string" default="http://localhost:4002">
+Internal URL for API service (used by frontend services).
+
+Example: `http://api:80` (in Docker/K8s)
+</ParamField>
+
+<ParamField path="PLAYGROUND_URL" type="string" default="http://localhost:3003">
+Public URL for the playground.
+
+Example: `https://playground.llmgateway.yourdomain.com`
+</ParamField>
+
+<ParamField path="DOCS_URL" type="string" default="http://localhost:3005">
+Public URL for documentation.
+
+Example: `https://docs.llmgateway.yourdomain.com`
+</ParamField>
+
+<ParamField path="ADMIN_URL" type="string" default="http://localhost:3006">
+Public URL for admin dashboard.
+
+Example: `https://admin.llmgateway.yourdomain.com`
+</ParamField>
+
+<ParamField path="CODE_URL" type="string" default="http://localhost:3004">
+Public URL for dev plans landing page.
+
+Example: `https://code.llmgateway.yourdomain.com`
+</ParamField>
+
+<ParamField path="ORIGIN_URLS" type="string" default="http://localhost:3002">
+Comma-separated list of allowed CORS origins.
+
+Example: `https://llmgateway.yourdomain.com,https://playground.llmgateway.yourdomain.com`
+</ParamField>
+
+## Authentication & Security
+
+<ParamField path="AUTH_SECRET" type="string" required>
+Secret key for session encryption. Generate with:
+```bash
+openssl rand -base64 32
+```
+</ParamField>
+
+<ParamField path="COOKIE_DOMAIN" type="string" default="localhost">
+Domain for authentication cookies.
+
+Example: `yourdomain.com`
+</ParamField>
+
+<ParamField path="PASSKEY_RP_ID" type="string" default="localhost">
+Relying Party ID for WebAuthn passkeys. Should match your domain.
+
+Example: `yourdomain.com`
+</ParamField>
+
+<ParamField path="PASSKEY_RP_NAME" type="string" default="LLMGateway">
+Relying Party display name for WebAuthn passkeys.
+</ParamField>
+
+### OAuth Providers
+
+<ParamField path="GITHUB_CLIENT_ID" type="string">
+GitHub OAuth application client ID. Optional - enables "Sign in with GitHub".
+</ParamField>
+
+<ParamField path="GITHUB_CLIENT_SECRET" type="string">
+GitHub OAuth application client secret.
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_ID" type="string">
+Google OAuth application client ID. Optional - enables "Sign in with Google".
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_SECRET" type="string">
+Google OAuth application client secret.
+</ParamField>
+
+## Timeout Configuration
+
+<ParamField path="TIMEOUT_MS" type="number" default="5000">
+Health check timeout in milliseconds.
+</ParamField>
+
+<ParamField path="KEEP_ALIVE_TIMEOUT_S" type="number" default="620">
+HTTP server keep-alive timeout in seconds. Should be higher than your load balancer's keepalive timeout to prevent 502 errors.
+
+Default is 620s for gateway and 60s for API. GCP Load Balancer uses 600s, so gateway default is set higher.
+</ParamField>
+
+<ParamField path="GATEWAY_TIMEOUT_MS" type="number" default="300000">
+Maximum time for end-to-end gateway request in milliseconds (5 minutes).
+</ParamField>
+
+<ParamField path="AI_STREAMING_TIMEOUT_MS" type="number" default="240000">
+AI provider request timeout for streaming requests in milliseconds (4 minutes).
+
+Should be shorter than `GATEWAY_TIMEOUT_MS` to allow for error handling. Defaults to 80% of `GATEWAY_TIMEOUT_MS`.
+</ParamField>
+
+<ParamField path="AI_TIMEOUT_MS" type="number" default="180000">
+AI provider request timeout for non-streaming requests in milliseconds (3 minutes).
+
+Non-streaming requests use a shorter timeout since they don't benefit from incremental responses.
+</ParamField>
+
+## Worker Configuration
+
+<ParamField path="BACKFILL_DURATION_SECONDS" type="number" default="300">
+Stats calculator backfill duration in seconds (5 minutes).
+</ParamField>
+
+<ParamField path="ENABLE_DATA_RETENTION_CLEANUP" type="boolean" default="false">
+Enable automatic deletion of verbose log data after retention period.
+
+Set to `"true"` to enable. When enabled, verbose fields are nullified after 30 days for all users.
+</ParamField>
+
+<ParamField path="EMAIL_FOLLOW_UPS" type="boolean" default="false">
+Enable follow-up lifecycle emails.
+
+Set to `"true"` to enable. Default just logs events without sending emails.
+</ParamField>
+
+## Feature Flags
+
+<ParamField path="PLATFORM_FEE_PERCENTAGE" type="number" default="0.05">
+Platform fee percentage for credit usage (5%).
+
+Applied when users pay with credits using platform API keys.
+</ParamField>
+
+<ParamField path="BILL_CANCELLED_REQUESTS" type="boolean" default="true">
+Bill cancelled requests based on estimated token usage.
+
+When enabled, cancelled requests are billed for prompt tokens and any partial completion tokens that were streamed before cancellation, plus request costs.
+
+Set to `"false"` to disable.
+</ParamField>
+
+<ParamField path="IMAGE_SIZE_LIMIT_MB" type="number" default="100">
+Maximum image upload size in megabytes.
+</ParamField>
+
+## LLM Provider API Keys
+
+Add API keys for the providers you want to use. You don't need all of them.
+
+### OpenAI
+
+<ParamField path="LLM_OPENAI_API_KEY" type="string">
+OpenAI API key.
+
+Format: `sk-...`
+</ParamField>
+
+### Anthropic
+
+<ParamField path="LLM_ANTHROPIC_API_KEY" type="string">
+Anthropic API key.
+
+Format: `sk-ant-...`
+</ParamField>
+
+### Google AI
+
+<ParamField path="LLM_GOOGLE_AI_STUDIO_API_KEY" type="string">
+Google AI Studio API key.
+</ParamField>
+
+<ParamField path="LLM_GOOGLE_VERTEX_API_KEY" type="string">
+Google Vertex AI API key.
+</ParamField>
+
+<ParamField path="LLM_GOOGLE_CLOUD_PROJECT" type="string">
+Google Cloud project ID for Vertex AI.
+</ParamField>
+
+<ParamField path="LLM_GOOGLE_VERTEX_REGION" type="string" default="global">
+Google Vertex AI region.
+</ParamField>
+
+### Other Providers
+
+<ParamField path="LLM_INFERENCE_NET_API_KEY" type="string">
+Inference.net API key.
+</ParamField>
+
+<ParamField path="LLM_TOGETHER_AI_API_KEY" type="string">
+Together.ai API key.
+</ParamField>
+
+<ParamField path="LLM_MISTRAL_API_KEY" type="string">
+Mistral AI API key.
+</ParamField>
+
+<ParamField path="LLM_MOONSHOT_API_KEY" type="string">
+Moonshot API key.
+</ParamField>
+
+<ParamField path="LLM_NOVITA_AI_API_KEY" type="string">
+Novita AI API key.
+</ParamField>
+
+<ParamField path="LLM_X_AI_API_KEY" type="string">
+xAI (Grok) API key.
+</ParamField>
+
+<ParamField path="LLM_GROQ_API_KEY" type="string">
+Groq API key.
+</ParamField>
+
+<ParamField path="LLM_DEEPSEEK_API_KEY" type="string">
+DeepSeek API key.
+</ParamField>
+
+<ParamField path="LLM_PERPLEXITY_API_KEY" type="string">
+Perplexity API key.
+</ParamField>
+
+<ParamField path="LLM_ALIBABA_API_KEY" type="string">
+Alibaba Cloud API key.
+</ParamField>
+
+<ParamField path="LLM_NEBIUS_API_KEY" type="string">
+Nebius API key.
+</ParamField>
+
+<ParamField path="LLM_NANO_GPT_API_KEY" type="string">
+NanoGPT API key.
+</ParamField>
+
+<ParamField path="LLM_Z_AI_API_KEY" type="string">
+Z.ai API key.
+</ParamField>
+
+<ParamField path="LLM_AWS_BEDROCK_API_KEY" type="string">
+AWS Bedrock API key.
+</ParamField>
+
+<ParamField path="LLM_AZURE_API_KEY" type="string">
+Microsoft Azure OpenAI API key.
+</ParamField>
+
+<ParamField path="LLM_CANOPY_WAVE_API_KEY" type="string">
+CanopyWave API key.
+</ParamField>
+
+## Payment Processing (Stripe)
+
+Optional - only needed if you want to enable billing.
+
+<ParamField path="STRIPE_SECRET_KEY" type="string">
+Stripe secret key.
+
+Format: `sk_live_...` (production) or `sk_test_...` (testing)
+</ParamField>
+
+<ParamField path="STRIPE_WEBHOOK_SECRET" type="string">
+Stripe webhook signing secret.
+
+Format: `whsec_...`
+</ParamField>
+
+<ParamField path="STRIPE_PRO_MONTHLY_PRICE_ID" type="string">
+Stripe price ID for Pro monthly subscription.
+
+Format: `price_...`
+</ParamField>
+
+<ParamField path="STRIPE_PRO_YEARLY_PRICE_ID" type="string">
+Stripe price ID for Pro yearly subscription.
+
+Format: `price_...`
+</ParamField>
+
+### Dev Plans
+
+<ParamField path="STRIPE_DEV_PLAN_LITE_PRICE_ID" type="string">
+Stripe price ID for Dev Plan Lite subscription.
+</ParamField>
+
+<ParamField path="STRIPE_DEV_PLAN_PRO_PRICE_ID" type="string">
+Stripe price ID for Dev Plan Pro subscription.
+</ParamField>
+
+<ParamField path="STRIPE_DEV_PLAN_MAX_PRICE_ID" type="string">
+Stripe price ID for Dev Plan Max subscription.
+</ParamField>
+
+<ParamField path="DEV_PLAN_CREDITS_MULTIPLIER" type="number" default="3">
+Credits multiplier for dev plan purchases (credits = price * multiplier).
+</ParamField>
+
+<ParamField path="FIRST_TIME_CREDIT_BONUS_MULTIPLIER" type="number">
+First-time credit purchase bonus multiplier.
+
+Example: `1.5` = 50% bonus on first credit purchase (max $50 bonus)
+
+Leave unset or empty to disable bonus.
+</ParamField>
+
+### Invoicing
+
+<ParamField path="INVOICE_FROM" type="string" default="Fake Company\nUnited States">
+Company name and address shown on invoices.
+
+Use `\n` for line breaks.
+
+Example: `Your Company Name\n123 Main St\nCity, State ZIP\nCountry`
+</ParamField>
+
+## Email (Resend)
+
+Required for transactional emails and contact management.
+
+<ParamField path="RESEND_API_KEY" type="string">
+Resend API key for sending emails.
+
+Format: `re_...`
+</ParamField>
+
+## Analytics (PostHog)
+
+Optional - remove if you don't want analytics.
+
+<ParamField path="POSTHOG_KEY" type="string">
+PostHog project API key.
+</ParamField>
+
+<ParamField path="POSTHOG_HOST" type="string" default="https://app.posthog.com">
+PostHog instance URL.
+</ParamField>
+
+## Notifications
+
+<ParamField path="DISCORD_NOTIFICATION_URL" type="string">
+Discord webhook URL for notifications (signups, credit purchases).
+
+Leave empty to disable.
+</ParamField>
+
+## Example .env File
+
+```bash
+# Copy this to .env and update the values
+
+# Database
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=change_this_secure_password
+POSTGRES_DB=llmgateway
+POSTGRES_PORT=5432
+DATABASE_URL=postgres://postgres:change_this_secure_password@postgres:5432/llmgateway
+
+# Redis
+REDIS_PASSWORD=change_this_redis_password
+REDIS_PORT=6379
+
+# Service Ports
+GATEWAY_PORT=4001
+API_PORT=4002
+UI_PORT=3002
+PLAYGROUND_PORT=3003
+ADMIN_PORT=3006
+
+# URLs (update for your domain)
+UI_URL=https://llmgateway.yourdomain.com
+API_URL=https://api.llmgateway.yourdomain.com
+ORIGIN_URLS=https://llmgateway.yourdomain.com
+
+# Authentication
+AUTH_SECRET=generate-with-openssl-rand-base64-32
+COOKIE_DOMAIN=yourdomain.com
+PASSKEY_RP_ID=yourdomain.com
+PASSKEY_RP_NAME=LLMGateway
+
+# GitHub OAuth (optional)
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# LLM Providers (add the ones you need)
+LLM_OPENAI_API_KEY=sk-your_openai_key_here
+LLM_ANTHROPIC_API_KEY=sk-ant-your_anthropic_key_here
+
+# Stripe (optional)
+STRIPE_SECRET_KEY=sk_live_your-key
+STRIPE_WEBHOOK_SECRET=whsec_your-secret
+STRIPE_PRO_MONTHLY_PRICE_ID=price_your-id
+STRIPE_PRO_YEARLY_PRICE_ID=price_your-id
+
+# Email (optional)
+RESEND_API_KEY=re_your-key
+
+# Analytics (optional)
+POSTHOG_KEY=your-key
+POSTHOG_HOST=https://app.posthog.com
+```
+
+## Security Best Practices
+
+<Warning>
+Never commit `.env` files to version control. Add `.env` to your `.gitignore`.
+</Warning>
+
+### Generate Secure Secrets
+
+```bash
+# Generate AUTH_SECRET
+openssl rand -base64 32
+
+# Generate passwords
+openssl rand -base64 24
+```
+
+### Use Secrets Management
+
+For production:
+
+- **Docker** - Use Docker secrets
+- **Kubernetes** - Use Kubernetes secrets or external secrets operator
+- **Cloud** - Use AWS Secrets Manager, Google Secret Manager, Azure Key Vault
+- **HashiCorp Vault** - For on-premise deployments
+
+### Rotate Credentials
+
+Regularly rotate:
+
+- Database passwords
+- Redis passwords
+- AUTH_SECRET
+- API keys
+- OAuth secrets

@@ -1,0 +1,128 @@
+---
+title: Management API Overview
+description: Manage your LLM Gateway resources programmatically
+---
+
+The Management API allows you to programmatically manage your LLM Gateway resources including API keys, provider keys, projects, organizations, and more.
+
+## Base URL
+
+```
+https://api.llmgateway.io
+```
+
+For local development:
+```
+http://localhost:4002
+```
+
+## Authentication
+
+All Management API endpoints require authentication. See the [Authentication](/api-reference/management/authentication) page for details on how to authenticate your requests.
+
+## Available Resources
+
+### Core Resources
+
+<CardGroup cols={2}>
+  <Card title="API Keys" icon="key" href="/api-reference/management/api-keys">
+    Create and manage API keys for accessing the Gateway API
+  </Card>
+  
+  <Card title="Provider Keys" icon="plug" href="/api-reference/management/provider-keys">
+    Configure provider API keys (OpenAI, Anthropic, etc.)
+  </Card>
+  
+  <Card title="Projects" icon="folder" href="/api-reference/management/projects">
+    Organize your API keys and settings into projects
+  </Card>
+  
+  <Card title="Organizations" icon="building" href="/api-reference/management/organizations">
+    Manage organization settings and billing
+  </Card>
+</CardGroup>
+
+### Analytics & Security
+
+<CardGroup cols={2}>
+  <Card title="Activity Logs" icon="chart-line" href="/api-reference/management/activity">
+    Query usage statistics and activity data
+  </Card>
+  
+  <Card title="Guardrails" icon="shield" href="/api-reference/management/guardrails">
+    Configure content safety and security rules (Enterprise)
+  </Card>
+</CardGroup>
+
+## Rate Limits
+
+The Management API has the following rate limits:
+
+- **Read operations**: 100 requests per minute
+- **Write operations**: 30 requests per minute
+
+Rate limit headers are included in all responses:
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1234567890
+```
+
+## Error Handling
+
+The API uses standard HTTP status codes and returns JSON error responses:
+
+```json
+{
+  "message": "Error description"
+}
+```
+
+### Common Status Codes
+
+| Code | Description |
+|------|-------------|
+| `200` | Success |
+| `201` | Created |
+| `400` | Bad Request - Invalid parameters |
+| `401` | Unauthorized - Missing or invalid authentication |
+| `403` | Forbidden - Insufficient permissions |
+| `404` | Not Found - Resource doesn't exist |
+| `429` | Too Many Requests - Rate limit exceeded |
+| `500` | Internal Server Error |
+
+## SDKs and Libraries
+
+Official SDKs are coming soon. For now, you can use standard HTTP clients:
+
+<CodeGroup>
+```bash cURL
+curl -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  https://api.llmgateway.io/keys/api
+```
+
+```javascript JavaScript
+fetch('https://api.llmgateway.io/keys/api', {
+  headers: {
+    'Authorization': 'Bearer YOUR_SESSION_TOKEN'
+  }
+});
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.llmgateway.io/keys/api',
+    headers={'Authorization': 'Bearer YOUR_SESSION_TOKEN'}
+)
+```
+</CodeGroup>
+
+## Support
+
+For questions or issues with the Management API:
+
+- Email: [contact@llmgateway.io](mailto:contact@llmgateway.io)
+- Documentation: [https://llmgateway.io/docs](https://llmgateway.io/docs)

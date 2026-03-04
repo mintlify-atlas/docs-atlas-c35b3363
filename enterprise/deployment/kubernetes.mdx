@@ -1,0 +1,758 @@
+---
+title: Kubernetes Deployment
+description: Deploy LLM Gateway Enterprise on Kubernetes
+---
+
+## Overview
+
+Deploy LLM Gateway Enterprise on Kubernetes for production-grade scalability, high availability, and automated operations.
+
+## Prerequisites
+
+- Kubernetes 1.25 or later
+- kubectl configured
+- Helm 3.x (optional but recommended)
+- 4GB RAM per node minimum
+- Persistent volume provisioner
+- Ingress controller (nginx, traefik, etc.)
+
+## Architecture
+
+```
+┌────────────────────┐
+│  Ingress Controller   │
+└────────┬───────────┘
+         │
+    ┌────┼────┐
+    │         │
+┌───┼──┐  ┌──┼───┐
+│ UI   │  │ API  │
+│ Pods │  │ Pods │
+└──┬──┘  └──┬──┘
+   │        │
+┌──┼───────┼──┐
+│ Gateway Pods  │
+└─────┬──────┘
+      │
+  ┌───┼───┐
+  │       │
+┌─┼──┐  ┌─┼──┐
+│ PG │  │ Redis│
+└────┘  └─────┘
+ PVC     PVC
+```
+
+## Namespace
+
+Create a dedicated namespace:
+
+```bash
+kubectl create namespace llmgateway
+```
+
+## Configuration
+
+### ConfigMap
+
+Create `configmap.yaml`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llmgateway-config
+  namespace: llmgateway
+data:
+  NODE_ENV: "production"
+  POSTGRES_USER: "postgres"
+  POSTGRES_DB: "llmgateway"
+  REDIS_PORT: "6379"
+  UI_PORT: "3002"
+  API_PORT: "4002"
+  GATEWAY_PORT: "4001"
+  PLAYGROUND_PORT: "3003"
+  ADMIN_PORT: "3006"
+  UI_URL: "https://llmgateway.yourdomain.com"
+  API_URL: "https://api.llmgateway.yourdomain.com"
+  GATEWAY_URL: "https://gateway.llmgateway.yourdomain.com"
+  PLAYGROUND_URL: "https://playground.llmgateway.yourdomain.com"
+  ADMIN_URL: "https://admin.llmgateway.yourdomain.com"
+  COOKIE_DOMAIN: "yourdomain.com"
+  PASSKEY_RP_ID: "yourdomain.com"
+  PASSKEY_RP_NAME: "LLMGateway"
+```
+
+Apply:
+
+```bash
+kubectl apply -f configmap.yaml
+```
+
+### Secrets
+
+Create `secrets.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: llmgateway-secrets
+  namespace: llmgateway
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: "your-postgres-password"
+  REDIS_PASSWORD: "your-redis-password"
+  AUTH_SECRET: "your-auth-secret-32-bytes"
+  GITHUB_CLIENT_ID: "your-github-client-id"
+  GITHUB_CLIENT_SECRET: "your-github-client-secret"
+  STRIPE_SECRET_KEY: "sk_live_your-stripe-key"
+  STRIPE_WEBHOOK_SECRET: "whsec_your-webhook-secret"
+  LLM_OPENAI_API_KEY: "sk-your-openai-key"
+  LLM_ANTHROPIC_API_KEY: "sk-ant-your-anthropic-key"
+```
+
+Apply:
+
+```bash
+kubectl apply -f secrets.yaml
+```
+
+<Note>
+For production, use a secrets management solution like:
+- HashiCorp Vault
+- AWS Secrets Manager
+- Google Secret Manager
+- Azure Key Vault
+- Sealed Secrets
+</Note>
+
+## PostgreSQL
+
+Deploy PostgreSQL with persistent storage.
+
+### StatefulSet
+
+Create `postgres.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: llmgateway
+spec:
+  ports:
+    - port: 5432
+      name: postgres
+  clusterIP: None
+  selector:
+    app: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: llmgateway
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: llmgateway-config
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: llmgateway-secrets
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: llmgateway-config
+              key: POSTGRES_DB
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+```
+
+Apply:
+
+```bash
+kubectl apply -f postgres.yaml
+```
+
+## Redis
+
+Deploy Redis for caching and queues.
+
+### Deployment
+
+Create `redis.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: llmgateway
+spec:
+  ports:
+    - port: 6379
+      name: redis
+  selector:
+    app: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: llmgateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:8-alpine
+        args:
+        - redis-server
+        - --appendonly
+        - "yes"
+        - --requirepass
+        - $(REDIS_PASSWORD)
+        ports:
+        - containerPort: 6379
+          name: redis
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: llmgateway-secrets
+              key: REDIS_PASSWORD
+        volumeMounts:
+        - name: redis-storage
+          mountPath: /data
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: llmgateway
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+```
+
+Apply:
+
+```bash
+kubectl apply -f redis.yaml
+```
+
+## Application Services
+
+### Gateway
+
+Create `gateway.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: llmgateway
+spec:
+  selector:
+    app: gateway
+  ports:
+    - port: 80
+      targetPort: 4001
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: llmgateway
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+      - name: gateway
+        image: ghcr.io/theopenco/llmgateway-gateway:latest
+        ports:
+        - containerPort: 4001
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "4001"
+        - name: DATABASE_URL
+          value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: llmgateway-secrets
+              key: REDIS_PASSWORD
+        - name: LLM_OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: llmgateway-secrets
+              key: LLM_OPENAI_API_KEY
+        - name: LLM_ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: llmgateway-secrets
+              key: LLM_ANTHROPIC_API_KEY
+        envFrom:
+        - configMapRef:
+            name: llmgateway-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+```
+
+### API
+
+Create `api.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: llmgateway
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 80
+      targetPort: 4002
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: llmgateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      initContainers:
+      - name: migrations
+        image: ghcr.io/theopenco/llmgateway-api:latest
+        command: ["pnpm", "run", "migrate"]
+        env:
+        - name: DATABASE_URL
+          value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+        envFrom:
+        - configMapRef:
+            name: llmgateway-config
+        - secretKeyRef:
+            name: llmgateway-secrets
+      containers:
+      - name: api
+        image: ghcr.io/theopenco/llmgateway-api:latest
+        ports:
+        - containerPort: 4002
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "4002"
+        - name: DATABASE_URL
+          value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+        envFrom:
+        - configMapRef:
+            name: llmgateway-config
+        - secretKeyRef:
+            name: llmgateway-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4002
+          initialDelaySeconds: 5
+          periodSeconds: 5
+```
+
+### UI
+
+Create `ui.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: llmgateway
+spec:
+  selector:
+    app: ui
+  ports:
+    - port: 80
+      targetPort: 3002
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  namespace: llmgateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ui
+  template:
+    metadata:
+      labels:
+        app: ui
+    spec:
+      containers:
+      - name: ui
+        image: ghcr.io/theopenco/llmgateway-ui:latest
+        ports:
+        - containerPort: 3002
+          name: http
+        envFrom:
+        - configMapRef:
+            name: llmgateway-config
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3002
+          initialDelaySeconds: 5
+          periodSeconds: 5
+```
+
+Apply all:
+
+```bash
+kubectl apply -f gateway.yaml
+kubectl apply -f api.yaml
+kubectl apply -f ui.yaml
+```
+
+## Ingress
+
+Configure ingress for external access.
+
+### Nginx Ingress
+
+Create `ingress.yaml`:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: llmgateway-ingress
+  namespace: llmgateway
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - llmgateway.yourdomain.com
+    - api.llmgateway.yourdomain.com
+    - gateway.llmgateway.yourdomain.com
+    secretName: llmgateway-tls
+  rules:
+  - host: llmgateway.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ui
+            port:
+              number: 80
+  - host: api.llmgateway.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api
+            port:
+              number: 80
+  - host: gateway.llmgateway.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway
+            port:
+              number: 80
+```
+
+Apply:
+
+```bash
+kubectl apply -f ingress.yaml
+```
+
+## Horizontal Pod Autoscaler
+
+Auto-scale based on CPU/memory usage.
+
+### Gateway HPA
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway-hpa
+  namespace: llmgateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gateway
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+Apply:
+
+```bash
+kubectl apply -f hpa.yaml
+```
+
+## Monitoring
+
+### Prometheus
+
+Add service monitors:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: llmgateway-metrics
+  namespace: llmgateway
+spec:
+  selector:
+    matchLabels:
+      app: gateway
+  endpoints:
+  - port: http
+    path: /metrics
+```
+
+### Logs
+
+View logs:
+
+```bash
+# All gateway pods
+kubectl logs -n llmgateway -l app=gateway -f
+
+# Specific pod
+kubectl logs -n llmgateway gateway-abc123 -f
+
+# Previous container
+kubectl logs -n llmgateway gateway-abc123 --previous
+```
+
+## Backup and Restore
+
+### PostgreSQL Backup
+
+```bash
+# Create backup
+kubectl exec -n llmgateway postgres-0 -- pg_dump -U postgres llmgateway > backup.sql
+
+# Restore backup
+cat backup.sql | kubectl exec -i -n llmgateway postgres-0 -- psql -U postgres llmgateway
+```
+
+### Velero
+
+Use Velero for cluster backups:
+
+```bash
+# Backup namespace
+velero backup create llmgateway-backup --include-namespaces llmgateway
+
+# Restore
+velero restore create --from-backup llmgateway-backup
+```
+
+## Production Checklist
+
+- [ ] Configure persistent volumes
+- [ ] Set resource limits and requests
+- [ ] Enable horizontal pod autoscaling
+- [ ] Configure ingress with SSL/TLS
+- [ ] Set up monitoring and alerting
+- [ ] Configure log aggregation
+- [ ] Enable network policies
+- [ ] Set up backup strategy
+- [ ] Configure secrets management
+- [ ] Review security contexts
+- [ ] Set up CI/CD pipeline
+- [ ] Document runbooks

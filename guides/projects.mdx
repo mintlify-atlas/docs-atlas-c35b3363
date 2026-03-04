@@ -1,0 +1,355 @@
+---
+title: "Projects"
+description: "Organize and manage your LLM Gateway projects"
+icon: "folder"
+---
+
+## What are Projects?
+
+Projects help you organize your LLM integrations within an organization. Each project contains:
+
+- **API Keys**: Credentials for making gateway requests
+- **Provider Keys**: Optional upstream provider API keys
+- **Usage Logs**: Request history and analytics
+- **Caching Settings**: Response caching configuration
+- **Mode Configuration**: How requests are processed (credits vs. API keys)
+
+<Note>
+  Each organization can have up to 10 projects. Contact support to increase this limit.
+</Note>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Environment Separation" icon="layer-group">
+    Create separate projects for development, staging, and production environments.
+  </Card>
+  
+  <Card title="Application Isolation" icon="grid-2">
+    Isolate different applications or services with dedicated projects.
+  </Card>
+  
+  <Card title="Team Segmentation" icon="users">
+    Give different teams their own projects with separate billing and usage tracking.
+  </Card>
+  
+  <Card title="Client Management" icon="building">
+    Manage multiple client implementations with separate projects and API keys.
+  </Card>
+</CardGroup>
+
+## Creating a Project
+
+### Via Dashboard
+
+<Steps>
+  <Step title="Navigate to Projects">
+    From your organization dashboard, click **Projects** in the sidebar.
+  </Step>
+  
+  <Step title="Create New Project">
+    Click the **New Project** button in the top right.
+  </Step>
+  
+  <Step title="Configure Settings">
+    Enter your project details:
+    - **Name**: A descriptive name (e.g., "Production API", "Mobile App")
+    - **Mode**: Choose how requests are processed
+    - **Caching**: Enable or disable response caching
+  </Step>
+  
+  <Step title="Create API Key">
+    After creating the project, generate your first API key to start making requests.
+  </Step>
+</Steps>
+
+### Via API
+
+Create a project programmatically:
+
+```bash
+curl -X POST https://api.llmgateway.io/api/v1/projects \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production API",
+    "organizationId": "org_123abc",
+    "mode": "hybrid",
+    "cachingEnabled": true,
+    "cacheDurationSeconds": 300
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "project": {
+    "id": "proj_456def",
+    "name": "Production API",
+    "organizationId": "org_123abc",
+    "mode": "hybrid",
+    "cachingEnabled": true,
+    "cacheDurationSeconds": 300,
+    "status": "active",
+    "createdAt": "2024-03-15T10:30:00Z",
+    "updatedAt": "2024-03-15T10:30:00Z"
+  }
+}
+```
+
+## Project Modes
+
+Projects support three operating modes that determine how LLM requests are processed:
+
+### Hybrid Mode (Recommended)
+
+```json
+{
+  "mode": "hybrid"
+}
+```
+
+Requests automatically use:
+1. **Your provider API keys** if configured (no gateway fees)
+2. **Gateway credits** as fallback (with gateway fees)
+
+<Tip>
+  Hybrid mode gives you the flexibility to use your own API keys when available while maintaining uninterrupted service through credits.
+</Tip>
+
+### API Keys Mode
+
+```json
+{
+  "mode": "api-keys"
+}
+```
+
+All requests **require** provider API keys configured in your organization. No credits are used.
+
+**Use when:**
+- You want direct provider billing
+- You need maximum cost control
+- You have enterprise agreements with providers
+
+### Credits Mode
+
+```json
+{
+  "mode": "credits"
+}
+```
+
+All requests use gateway credits. Provider API keys are ignored.
+
+**Use when:**
+- You want simplified billing
+- You need predictable per-token pricing
+- You're prototyping without provider accounts
+
+## Response Caching
+
+Enable caching to reduce costs and improve response times for repeated queries.
+
+### How It Works
+
+1. Gateway caches responses based on request parameters
+2. Identical requests return cached responses instantly
+3. Cache entries expire after the configured duration
+4. Cached responses don't count toward usage costs
+
+### Configuration
+
+**Enable via Dashboard:**
+
+Go to **Project Settings** → **Caching** and toggle the setting.
+
+**Enable via API:**
+
+```bash
+curl -X PATCH https://api.llmgateway.io/api/v1/projects/proj_456def \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cachingEnabled": true,
+    "cacheDurationSeconds": 300
+  }'
+```
+
+### Cache Duration
+
+Set how long responses are cached (10 seconds to 1 year):
+
+- **10-60 seconds**: Real-time data with light caching
+- **5-15 minutes**: General queries with moderate caching
+- **1-24 hours**: Static content or documentation queries
+- **Days/weeks**: Unchanging content like historical data
+
+<Warning>
+  Caching is based on the complete request body. Even small changes in parameters result in cache misses.
+</Warning>
+
+### Best Practices
+
+<AccordionGroup>
+  <Accordion title="When to Enable Caching">
+    - User-facing chatbots with common questions
+    - Documentation or FAQ systems
+    - Content generation with templates
+    - Repeated data analysis queries
+  </Accordion>
+  
+  <Accordion title="When to Disable Caching">
+    - Real-time data queries
+    - Personalized responses
+    - Time-sensitive information
+    - Unique user inputs
+  </Accordion>
+</AccordionGroup>
+
+## Managing Projects
+
+### Update Project Settings
+
+Modify project configuration:
+
+```bash
+curl -X PATCH https://api.llmgateway.io/api/v1/projects/proj_456def \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production API v2",
+    "mode": "api-keys",
+    "cachingEnabled": false
+  }'
+```
+
+### Get Project Details
+
+Retrieve project information:
+
+```bash
+curl https://api.llmgateway.io/api/v1/projects/proj_456def \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+### Delete a Project
+
+Permanently delete a project (requires owner role):
+
+```bash
+curl -X DELETE https://api.llmgateway.io/api/v1/projects/proj_456def \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+```
+
+<Warning>
+  Deleting a project will:
+  - Invalidate all API keys
+  - Remove all usage logs
+  - Stop all active requests
+  
+  This action cannot be undone.
+</Warning>
+
+## API Keys
+
+API keys authenticate your requests to the gateway. Each project can have multiple keys.
+
+### Creating API Keys
+
+<Steps>
+  <Step title="Navigate to Project">
+    Select your project from the dashboard.
+  </Step>
+  
+  <Step title="Go to API Keys Tab">
+    Click **API Keys** in the project menu.
+  </Step>
+  
+  <Step title="Generate New Key">
+    Click **Create API Key** and provide:
+    - **Description**: What this key is used for
+    - **Usage Limit** (optional): Maximum spend allowed
+  </Step>
+  
+  <Step title="Save Your Key">
+    Copy and securely store your key. It won't be shown again.
+  </Step>
+</Steps>
+
+### Usage Limits
+
+Set per-key spending limits to control costs:
+
+```bash
+curl -X POST https://api.llmgateway.io/api/v1/api-keys \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectId": "proj_456def",
+    "description": "Production API Key",
+    "usageLimit": 100.00
+  }'
+```
+
+Keys are automatically disabled when they exceed their usage limit.
+
+### IAM Rules
+
+Restrict what models and providers an API key can access. See the API Keys guide for details.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Project Organization" icon="folder-tree">
+    - Use one project per environment (dev, staging, prod)
+    - Name projects clearly: "Mobile App - Production"
+    - Document project purposes in descriptions
+    - Review and archive unused projects regularly
+  </Accordion>
+  
+  <Accordion title="Security" icon="shield">
+    - Rotate API keys periodically
+    - Use different keys for different services
+    - Set usage limits on all keys
+    - Delete unused keys immediately
+    - Never commit keys to version control
+  </Accordion>
+  
+  <Accordion title="Cost Management" icon="dollar-sign">
+    - Enable caching for repeated queries
+    - Set usage limits on API keys
+    - Use hybrid mode to leverage your provider keys
+    - Monitor usage regularly in the dashboard
+    - Set up billing alerts
+  </Accordion>
+  
+  <Accordion title="Monitoring" icon="chart-line">
+    - Review logs for errors and anomalies
+    - Track token usage by model
+    - Monitor cache hit rates
+    - Set up alerts for spending thresholds
+    - Analyze performance metrics
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Keys" icon="key" href="/guides/api-keys">
+    Learn about API key management and IAM rules.
+  </Card>
+  
+  <Card title="Provider Keys" icon="plug" href="/api-reference/management/provider-keys">
+    Configure upstream provider API keys.
+  </Card>
+  
+  <Card title="Usage Analytics" icon="chart-bar" href="/guides/analytics">
+    Monitor and analyze your gateway usage.
+  </Card>
+  
+  <Card title="Playground" icon="play" href="/guides/playground">
+    Test models in the interactive playground.
+  </Card>
+</CardGroup>

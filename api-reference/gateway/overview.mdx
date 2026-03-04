@@ -1,0 +1,142 @@
+---
+title: Gateway API Overview
+description: Introduction to the LLM Gateway API for routing requests across multiple providers
+---
+
+The LLM Gateway API provides a unified interface for interacting with multiple LLM providers through OpenAI-compatible endpoints. The gateway handles intelligent routing, caching, cost optimization, and provider fallback.
+
+## Base URL
+
+The Gateway API is available at:
+
+- **Production**: `https://api.llmgateway.io`
+- **Local Development**: `http://localhost:4001`
+
+## Key Features
+
+### Multi-Provider Support
+
+Route requests to multiple providers including:
+- OpenAI
+- Anthropic
+- Google Vertex AI
+- AWS Bedrock
+- Azure OpenAI
+- And more
+
+### Intelligent Routing
+
+The gateway automatically:
+- Selects the best provider based on cost, latency, and uptime
+- Falls back to alternative providers on failure
+- Routes to model-specific providers when requested
+- Handles provider-specific request/response transformations
+
+### Cost Optimization
+
+- Automatic selection of cheapest available provider
+- Response caching with Redis to reduce redundant requests
+- Usage tracking and cost analytics
+- Support for free models
+
+### Enterprise Features
+
+- API key management
+- Organization and project isolation
+- IAM-based access control
+- Rate limiting and usage quotas
+- Data retention controls
+- Guardrails and content filtering
+
+## API Endpoints
+
+The Gateway API exposes the following endpoints:
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /v1/chat/completions` | Create chat completions using OpenAI format |
+| `POST /v1/images/generations` | Generate images from text prompts |
+| `POST /v1/images/edits` | Edit images with text prompts |
+| `GET /v1/models` | List all available models |
+| `POST /v1/messages` | Create messages using Anthropic format |
+| `GET /` | Health check endpoint |
+| `GET /metrics` | Prometheus metrics |
+
+## Content Type
+
+All POST requests must include the `Content-Type: application/json` header. The gateway validates this and returns a `415 Unsupported Media Type` error if missing.
+
+Exceptions:
+- `/mcp` endpoint (handles its own content type validation)
+- `/oauth` endpoints (accept form-urlencoded or JSON)
+- `/v1/images/edits` endpoint (accepts multipart/form-data for file uploads)
+
+## Error Handling
+
+The gateway returns standardized error responses:
+
+```json
+{
+  "error": true,
+  "status": 400,
+  "message": "Error description"
+}
+```
+
+Common HTTP status codes:
+
+- `400` - Bad Request (invalid parameters)
+- `401` - Unauthorized (missing or invalid API key)
+- `402` - Payment Required (insufficient credits)
+- `403` - Forbidden (IAM policy violation)
+- `410` - Gone (project archived)
+- `415` - Unsupported Media Type (missing Content-Type header)
+- `429` - Too Many Requests (rate limit exceeded)
+- `499` - Client Closed Request (client disconnected)
+- `500` - Internal Server Error
+- `503` - Service Unavailable (health check failed)
+- `504` - Gateway Timeout (upstream provider timeout)
+
+## Health Check
+
+The root endpoint `/` provides health status:
+
+```bash
+curl https://api.llmgateway.io/
+```
+
+```json
+{
+  "message": "LLM Gateway is running",
+  "version": "1.0.0",
+  "health": {
+    "status": "healthy",
+    "redis": {
+      "connected": true
+    },
+    "database": {
+      "connected": true
+    }
+  }
+}
+```
+
+Query parameters:
+- `skip` - Comma-separated list of health checks to skip (e.g., `redis,database`)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/api-reference/gateway/authentication">
+    Learn how to authenticate with the Gateway API
+  </Card>
+  <Card title="Chat Completions" icon="comments" href="/api-reference/gateway/chat-completions">
+    Create chat completions with multiple providers
+  </Card>
+  <Card title="Images" icon="image" href="/api-reference/gateway/images">
+    Generate and edit images
+  </Card>
+  <Card title="Models" icon="list" href="/api-reference/gateway/models">
+    List available models and capabilities
+  </Card>
+</CardGroup>

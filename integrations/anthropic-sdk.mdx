@@ -1,0 +1,426 @@
+---
+title: Anthropic SDK
+description: Integrate LLM Gateway with the official Anthropic SDK
+---
+
+# Anthropic SDK Integration
+
+LLM Gateway supports the Anthropic SDK in two ways:
+
+1. **OpenAI-Compatible Format**: Use the OpenAI SDK format (recommended)
+2. **Native Anthropic Format**: Use the native `/v1/messages` endpoint
+
+## OpenAI-Compatible Format (Recommended)
+
+The easiest way to use LLM Gateway with Anthropic models is through the OpenAI SDK format:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key"
+    )
+
+    response = client.chat.completions.create(
+        model="anthropic/claude-3-5-sonnet-20241022",
+        messages=[
+            {"role": "user", "content": "Hello!"}
+        ]
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```typescript
+    import OpenAI from 'openai';
+
+    const client = new OpenAI({
+        baseURL: 'https://api.llmgateway.io/v1',
+        apiKey: 'your-llmgateway-api-key'
+    });
+
+    const response = await client.chat.completions.create({
+        model: 'anthropic/claude-3-5-sonnet-20241022',
+        messages: [
+            { role: 'user', content: 'Hello!' }
+        ]
+    });
+
+    console.log(response.choices[0].message.content);
+    ```
+  </Tab>
+</Tabs>
+
+## Native Anthropic Format
+
+You can also use LLM Gateway's native Anthropic `/v1/messages` endpoint with the official Anthropic SDK:
+
+<Tabs>
+  <Tab title="Python">
+    ### Installation
+    ```bash
+    pip install anthropic
+    ```
+
+    ### Basic Usage
+    ```python
+    from anthropic import Anthropic
+
+    client = Anthropic(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key"
+    )
+
+    message = client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=1024,
+        messages=[
+            {"role": "user", "content": "Hello, Claude!"}
+        ]
+    )
+
+    print(message.content[0].text)
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ### Installation
+    <CodeGroup>
+    ```bash npm
+    npm install @anthropic-ai/sdk
+    ```
+
+    ```bash yarn
+    yarn add @anthropic-ai/sdk
+    ```
+
+    ```bash pnpm
+    pnpm add @anthropic-ai/sdk
+    ```
+    </CodeGroup>
+
+    ### Basic Usage
+    ```typescript
+    import Anthropic from '@anthropic-ai/sdk';
+
+    const client = new Anthropic({
+        baseURL: 'https://api.llmgateway.io/v1',
+        apiKey: 'your-llmgateway-api-key'
+    });
+
+    const message = await client.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1024,
+        messages: [
+            { role: 'user', content: 'Hello, Claude!' }
+        ]
+    });
+
+    console.log(message.content[0].text);
+    ```
+  </Tab>
+</Tabs>
+
+## Streaming with Native Format
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from anthropic import Anthropic
+
+    client = Anthropic(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key"
+    )
+
+    with client.messages.stream(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=1024,
+        messages=[
+            {"role": "user", "content": "Write a short story"}
+        ]
+    ) as stream:
+        for text in stream.text_stream:
+            print(text, end="", flush=True)
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```typescript
+    import Anthropic from '@anthropic-ai/sdk';
+
+    const client = new Anthropic({
+        baseURL: 'https://api.llmgateway.io/v1',
+        apiKey: 'your-llmgateway-api-key'
+    });
+
+    const stream = await client.messages.stream({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1024,
+        messages: [
+            { role: 'user', content: 'Write a short story' }
+        ]
+    });
+
+    for await (const chunk of stream) {
+        if (chunk.type === 'content_block_delta' && 
+            chunk.delta.type === 'text_delta') {
+            process.stdout.write(chunk.delta.text);
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Tool Use (Function Calling)
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from anthropic import Anthropic
+
+    client = Anthropic(
+        base_url="https://api.llmgateway.io/v1",
+        api_key="your-llmgateway-api-key"
+    )
+
+    tools = [
+        {
+            "name": "get_weather",
+            "description": "Get the current weather in a given location",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    }
+                },
+                "required": ["location"]
+            }
+        }
+    ]
+
+    message = client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=1024,
+        tools=tools,
+        messages=[
+            {"role": "user", "content": "What's the weather in San Francisco?"}
+        ]
+    )
+
+    print(message.content)
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```typescript
+    import Anthropic from '@anthropic-ai/sdk';
+
+    const client = new Anthropic({
+        baseURL: 'https://api.llmgateway.io/v1',
+        apiKey: 'your-llmgateway-api-key'
+    });
+
+    const tools = [
+        {
+            name: 'get_weather',
+            description: 'Get the current weather in a given location',
+            input_schema: {
+                type: 'object',
+                properties: {
+                    location: {
+                        type: 'string',
+                        description: 'The city and state, e.g. San Francisco, CA'
+                    }
+                },
+                required: ['location']
+            }
+        }
+    ];
+
+    const message = await client.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1024,
+        tools,
+        messages: [
+            { role: 'user', content: 'What\'s the weather in San Francisco?' }
+        ]
+    });
+
+    console.log(message.content);
+    ```
+  </Tab>
+</Tabs>
+
+## Before and After Comparison
+
+### Python
+
+<CodeGroup>
+```python Before (Direct Anthropic)
+from anthropic import Anthropic
+
+client = Anthropic(
+    api_key="sk-ant-..."  # Anthropic API key
+)
+
+message = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
+```python After (LLM Gateway)
+from anthropic import Anthropic
+
+client = Anthropic(
+    base_url="https://api.llmgateway.io/v1",  # Add this line
+    api_key="your-llmgateway-api-key"  # Use LLM Gateway API key
+)
+
+message = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+</CodeGroup>
+
+### Node.js
+
+<CodeGroup>
+```typescript Before (Direct Anthropic)
+import Anthropic from '@anthropic-ai/sdk';
+
+const client = new Anthropic({
+    apiKey: 'sk-ant-...'  // Anthropic API key
+});
+
+const message = await client.messages.create({
+    model: 'claude-3-5-sonnet-20241022',
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: 'Hello!' }]
+});
+```
+
+```typescript After (LLM Gateway)
+import Anthropic from '@anthropic-ai/sdk';
+
+const client = new Anthropic({
+    baseURL: 'https://api.llmgateway.io/v1',  // Add this line
+    apiKey: 'your-llmgateway-api-key'  // Use LLM Gateway API key
+});
+
+const message = await client.messages.create({
+    model: 'claude-3-5-sonnet-20241022',
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: 'Hello!' }]
+});
+```
+</CodeGroup>
+
+## Extended Thinking (Reasoning)
+
+Claude 3.7 Sonnet supports extended thinking for complex reasoning tasks:
+
+```python
+message = client.messages.create(
+    model="claude-3-7-sonnet-20250219",
+    max_tokens=4096,
+    thinking={
+        "type": "enabled",
+        "budget_tokens": 4000  # Allocate tokens for reasoning
+    },
+    messages=[
+        {"role": "user", "content": "Solve this complex problem..."}
+    ]
+)
+
+# Access reasoning process
+for block in message.content:
+    if block.type == "thinking":
+        print("Reasoning:", block.thinking)
+    elif block.type == "text":
+        print("Response:", block.text)
+```
+
+## Prompt Caching
+
+Anthropic's prompt caching is automatically supported:
+
+```python
+message = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    system=[
+        {
+            "type": "text",
+            "text": "You are a helpful assistant...",
+            "cache_control": {"type": "ephemeral"}
+        }
+    ],
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+# Check cache usage in response
+print(f"Cache read tokens: {message.usage.cache_read_input_tokens}")
+print(f"Cache creation tokens: {message.usage.cache_creation_input_tokens}")
+```
+
+## Model Selection
+
+When using the native Anthropic format, use Anthropic's model names:
+
+```python
+# Claude 3.7 Sonnet (latest)
+model="claude-3-7-sonnet-20250219"
+
+# Claude 3.5 Sonnet
+model="claude-3-5-sonnet-20241022"
+
+# Claude 3 Opus
+model="claude-3-opus-20240229"
+
+# Claude 3.5 Haiku
+model="claude-3-5-haiku-20241022"
+```
+
+With OpenAI-compatible format, you can use automatic routing:
+
+```python
+# Auto-route to best Anthropic model
+model="anthropic/claude-3-5-sonnet-20241022"
+
+# Or use LLM Gateway's unified naming
+model="gpt-5"  # May route to Claude depending on availability
+```
+
+## Comparison: OpenAI vs Native Format
+
+| Feature | OpenAI Format | Native Anthropic Format |
+|---------|--------------|------------------------|
+| **Endpoint** | `/v1/chat/completions` | `/v1/messages` |
+| **SDK** | OpenAI SDK | Anthropic SDK |
+| **Response Format** | OpenAI-compatible | Anthropic native |
+| **Streaming** | ✅ Supported | ✅ Supported |
+| **Tool Use** | ✅ Supported | ✅ Supported |
+| **Prompt Caching** | ✅ Automatic | ✅ Full control |
+| **Extended Thinking** | Via `reasoning_effort` | Via `thinking` parameter |
+| **Multi-provider** | ✅ Works with all providers | ❌ Anthropic only |
+
+## Caveats and Limitations
+
+- **System Messages**: In native format, system messages use a separate `system` parameter, not the `messages` array
+- **Max Tokens**: `max_tokens` is required in native format but optional in OpenAI format
+- **Response Structure**: Native format returns Anthropic's response structure with different field names
+- **Provider Lock-in**: Native format only works with Anthropic models; OpenAI format supports all providers
+
+## Next Steps
+
+- [View Claude models](/api-reference/gateway/models)
+- [Learn about prompt caching](/features/caching)
+- [Explore the Gateway API](/api-reference/gateway/overview)

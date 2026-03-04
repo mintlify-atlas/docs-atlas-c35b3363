@@ -1,0 +1,546 @@
+---
+title: Billing Administration
+description: Manage billing, subscriptions, and credits in the admin dashboard
+---
+
+## Overview
+
+The admin dashboard provides comprehensive billing management tools for LLM Gateway Enterprise. Access at `http://localhost:3006` or your configured `ADMIN_URL`.
+
+## Admin Dashboard Access
+
+### Authentication
+
+The admin dashboard uses the same authentication system as the main application:
+
+1. Navigate to `/login` in the admin dashboard
+2. Sign in with admin credentials
+3. Only authenticated users can access admin features
+
+### URL Configuration
+
+```bash
+ADMIN_URL=https://admin.llmgateway.yourdomain.com
+```
+
+## Organizations View
+
+### Organization List
+
+View all organizations with key metrics:
+
+- **Name** - Organization name and ID
+- **Email** - Billing email address
+- **Plan** - Current subscription plan (free, pro, enterprise)
+- **Dev Plan** - Developer plan tier (none, lite, pro, max)
+- **Credits** - Current credit balance
+- **All Time Credits** - Total credits ever added
+- **Total Spent** - Total amount spent on the platform
+- **Created** - Organization creation date
+- **Status** - Active, inactive, or deleted
+
+### Search and Filter
+
+```typescript
+// Search by name, email, or organization ID
+const results = await getOrganizations({
+  search: "acme",
+  limit: 25,
+  offset: 0
+});
+```
+
+### Sorting
+
+Sort organizations by:
+
+- Name
+- Billing email
+- Plan
+- Dev plan
+- Credits (current balance)
+- Total credits (all time)
+- Total spent
+- Creation date
+- Status
+
+Click column headers to toggle between ascending and descending order.
+
+## Organization Details
+
+### Metrics Dashboard
+
+View detailed metrics for any organization:
+
+```typescript
+interface OrganizationMetrics {
+  organization: Organization;
+  window: "1h" | "4h" | "12h" | "1d" | "7d" | "30d" | "90d" | "365d";
+  startDate: string;
+  endDate: string;
+  totalRequests: number;
+  totalTokens: number;
+  totalCost: number;
+  inputTokens: number;
+  inputCost: number;
+  outputTokens: number;
+  outputCost: number;
+  cachedTokens: number;
+  cachedCost: number;
+  mostUsedModel: string | null;
+  mostUsedProvider: string | null;
+  mostUsedModelCost: number;
+  discountSavings: number;
+}
+```
+
+### Time Windows
+
+Analyze usage over different periods:
+
+- **1 hour** - Real-time monitoring
+- **4 hours** - Recent activity
+- **12 hours** - Half-day view
+- **1 day** - Daily metrics (default)
+- **7 days** - Weekly trends
+- **30 days** - Monthly analysis
+- **90 days** - Quarterly review
+- **365 days** - Annual overview
+
+### Cost Breakdown
+
+View detailed cost analysis:
+
+- **Input cost** - Prompt token costs
+- **Output cost** - Completion token costs
+- **Cached cost** - Cached token costs
+- **Total cost** - Sum of all costs
+- **Discount savings** - Amount saved with discounts
+
+## Credit Management
+
+### Gift Credits
+
+Admins can grant free credits to organizations:
+
+```typescript
+await giftCreditsToOrganization(orgId, {
+  creditAmount: 100.00,
+  comment: "Welcome bonus"
+});
+```
+
+#### Process
+
+1. Navigate to organization details
+2. Click "Gift Credits" button
+3. Enter credit amount (in USD)
+4. Add optional comment for internal tracking
+5. Confirm the gift
+
+#### Transaction Record
+
+Gifted credits create a transaction:
+
+```typescript
+{
+  type: "credit_gift",
+  creditAmount: "100.00",
+  status: "completed",
+  description: "Admin gift: Welcome bonus"
+}
+```
+
+### Transaction History
+
+View all financial transactions for an organization:
+
+```typescript
+interface Transaction {
+  id: string;
+  createdAt: string;
+  type: string;
+  amount: string | null;        // USD amount
+  creditAmount: string | null;   // Credit amount
+  currency: string;
+  status: string;                // pending, completed, failed
+  description: string | null;
+}
+```
+
+#### Transaction Types
+
+- **subscription_start** - New subscription created
+- **subscription_cancel** - Subscription cancelled
+- **subscription_end** - Subscription ended
+- **credit_topup** - Credits purchased
+- **credit_refund** - Credits refunded
+- **credit_gift** - Credits gifted by admin
+- **dev_plan_start** - Dev plan started
+- **dev_plan_upgrade** - Dev plan upgraded
+- **dev_plan_downgrade** - Dev plan downgraded
+- **dev_plan_cancel** - Dev plan cancelled
+- **dev_plan_end** - Dev plan ended
+- **dev_plan_renewal** - Dev plan renewed
+
+## Subscription Management
+
+### View Subscriptions
+
+See subscription details:
+
+- Stripe subscription ID
+- Current plan (free, pro, enterprise)
+- Billing cycle (monthly, yearly)
+- Cancellation status
+- Expiration date
+
+### Subscription Status
+
+```typescript
+interface SubscriptionStatus {
+  plan: "free" | "pro" | "enterprise";
+  subscriptionId: string | null;
+  subscriptionStatus: string;
+  subscriptionCancelled: boolean;
+  billingCycle: "monthly" | "yearly" | null;
+}
+```
+
+### Manual Intervention
+
+Admins can:
+
+- View Stripe subscription details
+- Check payment history
+- Investigate payment failures
+- Resolve billing issues
+
+## Projects and API Keys
+
+### View Projects
+
+See all projects for an organization:
+
+```typescript
+interface Project {
+  id: string;
+  name: string;
+  mode: string;              // production or development
+  status: string | null;
+  cachingEnabled: boolean;
+  createdAt: string;
+}
+```
+
+### View API Keys
+
+List all API keys:
+
+```typescript
+interface ApiKey {
+  id: string;
+  token: string;             // Masked: sk-...****
+  description: string;
+  status: string | null;
+  usage: string;             // Current usage
+  usageLimit: string | null; // Optional limit
+  projectId: string;
+  projectName: string;
+  createdAt: string;
+}
+```
+
+### Project Metrics
+
+View per-project analytics:
+
+- Request volume
+- Token usage
+- Cost breakdown
+- Top models used
+- Error rates
+
+### Request Logs
+
+View detailed logs for project debugging:
+
+```typescript
+interface ProjectLogEntry {
+  id: string;
+  createdAt: string;
+  duration: number;
+  usedModel: string;
+  usedProvider: string;
+  totalTokens: string | null;
+  cost: number | null;
+  hasError: boolean | null;
+  unifiedFinishReason: string | null;
+  cached: boolean | null;
+  cachedTokens: string | null;
+  source: string | null;
+  content: string | null;
+  usedMode: string;
+  discount: number | null;
+}
+```
+
+## Team Members
+
+### View Members
+
+See all organization members:
+
+```typescript
+interface Member {
+  id: string;
+  userId: string;
+  role: string;              // owner, admin, member, viewer
+  createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+    emailVerified: boolean;
+  };
+}
+```
+
+### Member Roles
+
+- **Owner** - Full access including billing
+- **Admin** - Manage projects and members
+- **Member** - Use API keys and view analytics
+- **Viewer** - Read-only access
+
+## User Management
+
+### Delete Users
+
+Admins can delete user accounts:
+
+```typescript
+await deleteUser(userId);
+```
+
+<Warning>
+Deleting a user:
+- Removes the user account
+- Cascades to delete their organizations
+- Deletes all projects, API keys, and data
+- Cannot be undone
+
+Use with extreme caution.
+</Warning>
+
+#### Confirmation Required
+
+The admin dashboard requires confirmation:
+
+1. Click delete button
+2. Enter user's email to confirm
+3. Confirm deletion
+
+## Analytics and Reporting
+
+### Platform Metrics
+
+View system-wide statistics:
+
+- Total organizations
+- Total credits in circulation
+- Revenue metrics
+- Active subscriptions
+- User growth
+
+### Charts and Visualizations
+
+Built-in charts for:
+
+- **Signups over time** - User growth trends
+- **Revenue over time** - Financial performance
+- **Token usage** - Platform utilization
+- **Cost analysis** - Spending patterns
+
+### Export Data
+
+Export data for external analysis:
+
+```bash
+# Via API
+curl -X GET https://admin.yourdomain.com/api/export/organizations \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -o organizations.csv
+```
+
+## Discount Management
+
+### View Discounts
+
+See all discount codes and their usage:
+
+- Discount code
+- Percentage or fixed amount
+- Usage limits
+- Expiration date
+- Redemption count
+
+### Create Discounts
+
+Create promotional discount codes:
+
+```typescript
+interface DiscountCode {
+  code: string;
+  type: "percentage" | "fixed";
+  value: number;
+  maxRedemptions: number | null;
+  expiresAt: Date | null;
+  active: boolean;
+}
+```
+
+## Provider Configuration
+
+### View Providers
+
+Manage LLM provider settings:
+
+- Enabled/disabled status
+- Rate limits
+- Default API keys
+- Model availability
+
+### Model Configuration
+
+Configure model settings:
+
+- Pricing per token
+- Availability by plan
+- Context window limits
+- Feature flags
+
+## Security and Audit
+
+### Admin Actions
+
+All admin actions are logged:
+
+```typescript
+interface AdminAction {
+  timestamp: Date;
+  adminUserId: string;
+  action: string;
+  targetOrganizationId: string;
+  targetUserId?: string;
+  details: Record<string, unknown>;
+}
+```
+
+### Audit Trail
+
+View audit logs for compliance:
+
+- Who performed the action
+- What action was taken
+- When it occurred
+- Which resources were affected
+- Additional context
+
+## API Endpoints
+
+Admin dashboard uses these API routes:
+
+### Organizations
+
+```typescript
+GET  /admin/organizations
+GET  /admin/organizations/:orgId
+GET  /admin/organizations/:orgId/transactions
+GET  /admin/organizations/:orgId/projects
+GET  /admin/organizations/:orgId/api-keys
+GET  /admin/organizations/:orgId/members
+POST /admin/organizations/:orgId/gift-credits
+```
+
+### Projects
+
+```typescript
+GET /admin/organizations/:orgId/projects/:projectId/metrics
+GET /admin/organizations/:orgId/projects/:projectId/logs
+```
+
+### Users
+
+```typescript
+DELETE /admin/users/:userId
+```
+
+### Metrics
+
+```typescript
+GET /admin/metrics/platform
+GET /admin/metrics/revenue
+GET /admin/metrics/signups
+```
+
+## Best Practices
+
+### Regular Monitoring
+
+- Check platform metrics daily
+- Monitor for unusual spending patterns
+- Review failed payments
+- Track user growth
+
+### Credit Management
+
+- Document all credit gifts
+- Use descriptive comments
+- Set spending alerts
+- Review credit usage trends
+
+### Support Workflow
+
+1. User reports issue
+2. Look up organization in admin dashboard
+3. Review metrics and logs
+4. Identify problem (e.g., insufficient credits)
+5. Take action (e.g., gift credits)
+6. Document resolution
+
+### Data Privacy
+
+- Only access user data when necessary
+- Follow data protection regulations
+- Log all data access
+- Minimize data exposure
+
+## Troubleshooting
+
+### Admin Dashboard Won't Load
+
+```bash
+# Check admin service is running
+docker compose ps admin
+
+# Check logs
+docker compose logs admin
+
+# Verify API connection
+curl http://localhost:3006/api/health
+```
+
+### Can't Gift Credits
+
+- Verify organization exists
+- Check credit amount is positive
+- Ensure admin is authenticated
+- Review API logs for errors
+
+### Metrics Not Loading
+
+- Check database connection
+- Verify time window is valid
+- Review API response for errors
+- Check for data in the log tables

@@ -1,0 +1,294 @@
+---
+title: Enterprise Features
+description: Comprehensive guide to LLM Gateway Enterprise features
+---
+
+## Billing and Subscription Management
+
+Enterprise includes a complete billing system powered by Stripe:
+
+### Subscription Plans
+
+- **Free** - Open source features, 30-day data retention
+- **Pro** - Monthly/yearly subscriptions with extended retention
+- **Enterprise** - Custom pricing and features
+
+### Dev Plans
+
+Personal developer accounts with credits:
+
+- **Lite** - Entry-level credits for small projects
+- **Pro** - Increased credits and all model access
+- **Max** - Maximum credits and priority support
+
+### Features
+
+- **Credit system** - Pay-as-you-go with credit purchases
+- **Automatic billing** - Recurring subscriptions
+- **Usage limits** - Set spending caps per organization
+- **Invoicing** - Automatic invoice generation
+- **Payment methods** - Credit cards via Stripe
+- **Credit gifts** - Admin can grant credits to organizations
+- **Referral earnings** - Earn credits by referring users
+
+## Extended Data Retention
+
+Enterprise offers unlimited data retention vs 30 days for open source:
+
+### Retention Levels
+
+```typescript
+type RetentionLevel = "retain" | "none";
+```
+
+- **retain** - Store full request/response data indefinitely
+- **none** - Store only metadata (no verbose data)
+
+### Data Stored
+
+With retention enabled:
+
+- Complete request payloads
+- Full response content
+- Message history
+- Model parameters
+- Error details
+- Performance metrics
+
+### Storage Costs
+
+Data retention is billed at **$0.01 per 1M tokens** stored.
+
+### Cleanup Process
+
+When retention is disabled:
+
+- Verbose data is nullified after 30 days
+- Metadata and analytics are preserved
+- Cleanup runs automatically via worker process
+
+## Team and Organization Management
+
+Multi-user collaboration with role-based access:
+
+### Organization Structure
+
+```
+Organization
+├── Members (users with roles)
+├── Projects
+│   ├── API Keys
+│   └── Provider Keys (Pro)
+└── Billing Settings
+```
+
+### User Roles
+
+- **Owner** - Full access including billing
+- **Admin** - Manage projects and members
+- **Member** - View analytics and use API keys
+- **Viewer** - Read-only access
+
+### Features
+
+- **Member invitations** - Email-based invites
+- **Role management** - Assign and update roles
+- **Multiple organizations** - Users can belong to multiple orgs
+- **Personal organizations** - Auto-created for each user
+- **Audit logging** - Track all member actions
+
+## Security Guardrails
+
+Enterprise includes advanced content filtering and security rules:
+
+### System Rules
+
+Built-in detection for:
+
+- **PII detection** - Email, phone, SSN, credit cards
+- **Secrets detection** - API keys, tokens, passwords
+- **Jailbreak detection** - Prompt injection attempts
+- **File leakage** - Unauthorized file access attempts
+- **Document leakage** - Sensitive document detection
+
+### Custom Rules
+
+Create your own rules:
+
+- **Blocked terms** - Blacklist specific words/phrases
+- **Custom regex** - Pattern-based filtering
+- **Topic restriction** - Limit allowed topics
+
+### Actions
+
+When violations are detected:
+
+- **Block** - Reject the request
+- **Warn** - Allow but log violation
+- **Redact** - Remove sensitive content
+
+### Configuration
+
+```typescript
+interface GuardrailConfig {
+  enabled: boolean;
+  systemRules: SystemRulesConfig;
+  customRules: CustomRuleConfig[];
+  defaultAction: GuardrailAction;
+}
+```
+
+## Audit Logging
+
+Comprehensive audit trails for compliance:
+
+### Tracked Actions
+
+- User authentication events
+- Organization changes
+- Project creation/deletion
+- API key management
+- Subscription changes
+- Member invitations
+- Settings updates
+
+### Audit Log Schema
+
+```typescript
+interface AuditLog {
+  id: string;
+  createdAt: Date;
+  userId: string;
+  organizationId: string;
+  action: AuditLogAction;
+  resourceType: AuditLogResourceType;
+  resourceId: string | null;
+  metadata: Record<string, unknown>;
+  ipAddress: string | null;
+  userAgent: string | null;
+}
+```
+
+### Resource Types
+
+- `organization`
+- `project`
+- `api_key`
+- `provider_key`
+- `subscription`
+- `member`
+- `settings`
+
+## Admin Dashboard
+
+Internal administration interface at port 3006:
+
+### Features
+
+- **Organization management**
+  - View all organizations
+  - Search by name, email, or ID
+  - Sort by metrics (credits, spend, plan)
+  - Delete users and organizations
+
+- **Usage analytics**
+  - Organization-level metrics
+  - Project-level metrics
+  - Request logs and traces
+  - Cost analysis
+
+- **Billing tools**
+  - Gift credits to organizations
+  - View transaction history
+  - Track subscriptions
+  - Monitor payment failures
+
+- **Provider management**
+  - Configure provider API keys
+  - Set rate limits
+  - Enable/disable providers
+
+- **Model configuration**
+  - Add/remove models
+  - Set pricing
+  - Configure availability
+
+- **Discount management**
+  - Create discount codes
+  - Set usage limits
+  - Track redemptions
+
+## Custom Provider Keys
+
+Pro plan feature to use your own provider API keys:
+
+### Benefits
+
+- **Direct billing** - Pay providers directly
+- **Higher rate limits** - Use your tier limits
+- **Model access** - Access to your approved models
+- **Cost control** - No platform markup
+
+### Configuration
+
+Per-project provider key settings:
+
+```typescript
+interface ProviderKey {
+  projectId: string;
+  provider: string;
+  apiKey: string; // encrypted
+  enabled: boolean;
+  createdAt: Date;
+}
+```
+
+## Analytics and Monitoring
+
+Enhanced analytics capabilities:
+
+### Metrics
+
+- **Token usage** - Input, output, cached tokens
+- **Cost tracking** - Per model, provider, project
+- **Performance** - Response times, error rates
+- **Model comparison** - Side-by-side analysis
+- **Time-series data** - Historical trends
+
+### Time Windows
+
+- 1 hour, 4 hours, 12 hours
+- 1 day, 7 days, 30 days
+- 90 days, 365 days (Enterprise)
+
+### Exports
+
+- CSV exports
+- API access to raw data
+- Custom reporting
+
+## Priority Support
+
+Enterprise customers receive:
+
+### Response Times
+
+- **Critical issues** - 4 hours
+- **High priority** - 24 hours  
+- **Normal** - 48 hours
+- **Low priority** - 5 business days
+
+### Support Channels
+
+- Email: contact@llmgateway.io
+- Dedicated Slack channel
+- Video calls (by appointment)
+- Quarterly business reviews
+
+### Included Services
+
+- Architecture review
+- Performance optimization
+- Custom feature development
+- Training and onboarding
+- Migration assistance
