@@ -1,80 +1,216 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with LLM Gateway in 5 minutes
+icon: rocket
 ---
 
-## Get started in three steps
+Get up and running with LLM Gateway in just a few minutes. This guide will walk you through creating an account, getting your API key, and making your first request.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, you'll need:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- An LLM Gateway account (sign up at [llmgateway.io](https://llmgateway.io))
+- curl or your favorite HTTP client
+- An OpenAI or Anthropic API key (optional, for testing)
+
+<Tip>
+If you prefer to self-host, see the [self-hosting guide](/self-hosting) instead.
+</Tip>
+
+## Get started
+
+<Steps>
+  <Step title="Create your account">
+    Visit [llmgateway.io](https://llmgateway.io) and sign up for a free account. You can use:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    - Email and password
+    - GitHub OAuth
+    - Google OAuth
+    - Passkeys (WebAuthn)
 
-### Step 2: Deploy your changes
+    After signing up, you'll be redirected to the dashboard.
+  </Step>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+  <Step title="Create a project">
+    Projects help you organize your API keys and track usage separately for different applications.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    1. Click **New Project** in the dashboard
+    2. Enter a project name (e.g., "My First Project")
+    3. Select a project mode:
+       - **API Keys** - Use your own provider API keys
+       - **Credits** - Use pre-paid LLM Gateway credits
+       - **Hybrid** - Use both API keys and credits
+    4. Click **Create Project**
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    <Note>
+    For this quickstart, select "API Keys" mode. You'll add your provider keys in the next step.
+    </Note>
+  </Step>
 
-### Step 3: Go live
+  <Step title="Add a provider key">
+    To route requests through LLM Gateway, you need to add at least one provider API key.
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    1. In your project dashboard, navigate to **Provider Keys**
+    2. Click **Add Provider Key**
+    3. Select a provider (e.g., OpenAI)
+    4. Paste your OpenAI API key
+    5. Click **Save**
 
-## Next steps
+    <Accordion title="Where do I get provider API keys?">
+      - **OpenAI**: [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+      - **Anthropic**: [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+      - **Google**: [console.cloud.google.com](https://console.cloud.google.com)
+    </Accordion>
 
-Now that you have your docs running, explore these key features:
+    LLM Gateway will validate your key automatically. Once validated, you're ready to make requests!
+  </Step>
+
+  <Step title="Generate an API key">
+    Generate an LLM Gateway API key to authenticate your requests.
+
+    1. Navigate to **API Keys** in your project
+    2. Click **Create API Key**
+    3. Give it a name (e.g., "Development Key")
+    4. (Optional) Set usage limits or IAM rules
+    5. Click **Create**
+    6. **Copy the API key immediately** - you won't be able to see it again!
+
+    <Warning>
+    Store your API key securely. Never commit it to version control or share it publicly.
+    </Warning>
+  </Step>
+
+  <Step title="Make your first request">
+    Now you're ready to make your first LLM request through the gateway!
+
+    ```bash cURL
+    curl -X POST https://api.llmgateway.io/v1/chat/completions \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer YOUR_LLM_GATEWAY_API_KEY" \
+      -d '{
+        "model": "gpt-4o",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello! Can you explain what an API gateway is in one sentence?"
+          }
+        ]
+      }'
+    ```
+
+    Replace `YOUR_LLM_GATEWAY_API_KEY` with the API key you created in the previous step.
+
+    <Accordion title="Expected response">
+      ```json
+      {
+        "id": "chatcmpl-abc123",
+        "object": "chat.completion",
+        "created": 1677652288,
+        "model": "gpt-4o",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "An API gateway is a server that acts as an intermediary between clients and backend services, handling request routing, authentication, rate limiting, and other cross-cutting concerns."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 23,
+          "completion_tokens": 38,
+          "total_tokens": 61
+        }
+      }
+      ```
+    </Accordion>
+
+    The response format is identical to OpenAI's API, making it easy to switch between providers or use LLM Gateway as a drop-in replacement.
+  </Step>
+
+  <Step title="View your analytics">
+    Check the dashboard to see your request logs and usage metrics:
+
+    1. Navigate to **Activity** in your project
+    2. View token usage, costs, and response times
+    3. Filter by date range, model, or API key
+    4. Export data for further analysis
+
+    <Info>
+    Analytics are updated in real-time. You should see your test request appear immediately in the activity feed.
+    </Info>
+  </Step>
+</Steps>
+
+## What's next?
+
+Now that you've made your first request, explore these features:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Enable caching" icon="database" href="/features/caching">
+    Reduce costs and latency by caching responses
+  </Card>
+  <Card title="Set up guardrails" icon="shield-halved" href="/features/guardrails">
+    Add content filters and safety policies
+  </Card>
+  <Card title="Use with SDKs" icon="code" href="/integrations/openai-sdk">
+    Integrate with OpenAI SDK, LangChain, or other frameworks
+  </Card>
+  <Card title="Try the playground" icon="flask" href="/guides/playground">
+    Test models interactively in the browser
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Authentication options
+
+LLM Gateway supports two authentication methods:
+
+### Bearer token (recommended)
+
+```bash
+Authorization: Bearer llm_sk_...
+```
+
+### x-api-key header
+
+```bash
+x-api-key: llm_sk_...
+```
+
+Both methods work identically. Use whichever is more convenient for your setup.
+
+## Common issues
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized error">
+    - Check that your API key is correct
+    - Ensure you're using the `Authorization: Bearer` header
+    - Verify your API key hasn't expired or been revoked
+  </Accordion>
+
+  <Accordion title="Provider key not found">
+    - Add at least one provider key in your project settings
+    - Ensure the provider key is validated (green checkmark)
+    - Check that you have credits or an active provider key for the requested model
+  </Accordion>
+
+  <Accordion title="Model not found">
+    - Verify the model name is correct (e.g., `gpt-4o`, `claude-3-5-sonnet-20241022`)
+    - Check that your provider key supports the requested model
+    - Use `GET /v1/models` to list available models
+  </Accordion>
+
+  <Accordion title="Rate limit exceeded">
+    - You may have hit your usage limits (check project settings)
+    - Your provider may be rate-limiting you (check provider dashboard)
+    - Consider upgrading your plan or adding more provider keys
+  </Accordion>
+</AccordionGroup>
+
+## Need help?
+
+- Check the [API Reference](/api-reference/gateway/overview) for detailed endpoint documentation
+- Read the [Integration Guides](/integrations/openai-sdk) for SDK-specific instructions
+- Visit the [GitHub repository](https://github.com/theopenco/llmgateway) to report issues or contribute
