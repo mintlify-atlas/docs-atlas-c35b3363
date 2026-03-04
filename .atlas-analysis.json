@@ -1,0 +1,142 @@
+{
+  "projectType": "saas",
+  "projectName": "LLM Gateway",
+  "projectDescription": "Route, manage, and analyze your LLM requests across multiple providers with a unified API interface.",
+  "theme": "sequoia",
+  "primaryColor": "#040404",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "self-hosting"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/unified-api",
+              "features/multi-provider",
+              "features/analytics",
+              "features/api-keys",
+              "features/caching",
+              "features/rate-limiting",
+              "features/guardrails"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/projects",
+              "guides/organizations",
+              "guides/playground",
+              "guides/mcp-integration",
+              "guides/migration"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/openai-sdk",
+              "integrations/anthropic-sdk",
+              "integrations/langchain",
+              "integrations/vercel-ai-sdk"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Gateway API",
+            "pages": [
+              "api-reference/gateway/overview",
+              "api-reference/gateway/authentication",
+              "api-reference/gateway/chat-completions",
+              "api-reference/gateway/images",
+              "api-reference/gateway/models",
+              "api-reference/gateway/anthropic-messages"
+            ]
+          },
+          {
+            "group": "Management API",
+            "pages": [
+              "api-reference/management/overview",
+              "api-reference/management/authentication",
+              "api-reference/management/api-keys",
+              "api-reference/management/provider-keys",
+              "api-reference/management/projects",
+              "api-reference/management/organizations",
+              "api-reference/management/activity",
+              "api-reference/management/guardrails"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Enterprise",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "enterprise/overview",
+              "enterprise/features",
+              "enterprise/licensing"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "enterprise/deployment/docker",
+              "enterprise/deployment/kubernetes",
+              "enterprise/deployment/environment-variables"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "enterprise/admin/billing",
+              "enterprise/admin/team-management",
+              "enterprise/admin/data-retention",
+              "enterprise/admin/security"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Unified OpenAI-compatible API interface",
+    "Multi-provider support (OpenAI, Anthropic, Google, AWS Bedrock, etc.)",
+    "Usage analytics and cost tracking",
+    "API key management",
+    "Response caching with Redis",
+    "Rate limiting and guardrails",
+    "Projects and organizations",
+    "Model Context Protocol (MCP) integration"
+  ],
+  "publicApiSurface": [
+    "POST /v1/chat/completions",
+    "POST /v1/images/generations",
+    "GET /v1/models",
+    "POST /v1/messages (Anthropic)",
+    "GET /api/keys",
+    "POST /api/keys",
+    "GET /api/provider-keys",
+    "POST /api/provider-keys",
+    "GET /api/projects",
+    "POST /api/projects",
+    "GET /api/organizations",
+    "GET /api/activity",
+    "GET /api/guardrails",
+    "POST /api/guardrails"
+  ]
+}
